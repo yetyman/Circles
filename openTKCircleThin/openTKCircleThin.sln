@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30804.86
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openTKCircleThin", "openTKCircleThin.csproj", "{055C1E47-4FE7-4037-A51F-3F2E7C54FA5B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test test", "..\test test\test test.csproj", "{FBA30C58-096B-4CE2-B633-E8BCF39D7AA8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{055C1E47-4FE7-4037-A51F-3F2E7C54FA5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{055C1E47-4FE7-4037-A51F-3F2E7C54FA5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{055C1E47-4FE7-4037-A51F-3F2E7C54FA5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{055C1E47-4FE7-4037-A51F-3F2E7C54FA5B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBA30C58-096B-4CE2-B633-E8BCF39D7AA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBA30C58-096B-4CE2-B633-E8BCF39D7AA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBA30C58-096B-4CE2-B633-E8BCF39D7AA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBA30C58-096B-4CE2-B633-E8BCF39D7AA8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3ABAFA92-5ED3-47C3-8553-95B506E143FE}
+	EndGlobalSection
+EndGlobal

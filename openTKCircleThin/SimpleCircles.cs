@@ -2,6 +2,7 @@
 using OpenTK.Windowing.Common;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -13,30 +14,33 @@ namespace openTKCircleThin
         int PointVertexArrayBuffer;
         int PointArrayObject;
         int TwoTriangleElementBuffer;
+        int FloatMapBuffer;
+        int FloatMapTexture;
         PointShader shader;
+        TextureShader texShader;
         float[] vertices = {
             -.5f,  .5f, 0.0f,     //Top-left vertex
             -.5f, -.5f, 0.0f,   //Bottom-left vertex
              .5f,  .5f, 0.0f,  //Top-right vertex
              .5f, -.5f, 0.0f,    //Bottom-right vertex
              
-              -.5f, .5f,//position
+              .25f, .75f,//position
              .4f, .5f, .12f,//sizes
              .4f, .1f, .12f,//opacities
 
-              -.3f, .3f,//position
+              .2f, .8f,//position
              .2f, .7f, .2f,//sizes
              .4f, .2f, .12f,//opacities
 
-              0f, 0f,//position
+              .5f, .5f,//position
              .4f, 1f, .12f,//sizes
              .4f, .3f, .12f,//opacities
 
-              .4f, -.7f,//position
+              .9f, .15f,//position
              .2f, .7f, .2f,//sizes
              .4f, .4f, .12f,//opacities
 
-              .2f, .3f,//position
+              .7f, .8f,//position
              .2f, .5f, .2f,//sizes
              .4f, .8f, .12f,//opacities
 
@@ -49,15 +53,49 @@ namespace openTKCircleThin
         public SimpleCircles(int width, int height, string title) : base(width, height, title)
         {
         }
+        private void ProcessingLoopFake()
+        {
+            var rand = new Random();
+            Stopwatch _timer = new Stopwatch();
+            _timer.Start();
+            long timeStart = _timer.ElapsedMilliseconds;
+            long timeEnd = _timer.ElapsedMilliseconds;
+            long frameTime = 16;
+            while (true)
+            {
+                timeStart = _timer.ElapsedMilliseconds;
+
+                // 2. copy our vertices array in a buffer for OpenGL to use
+                //GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
+                for (int i = 0; i < 1000; i++)
+                {
+                    //update all kinds of values
+                    int vertexIndex = rand.Next(0, (vertices.Length - 12) / 8) * 8 + 12;
+                    vertices[vertexIndex + 0] = (float)rand.NextDouble();//position1
+                    vertices[vertexIndex + 1] = (float)rand.NextDouble();//position2
+                    vertices[vertexIndex + 2] = (float)rand.NextDouble();//size1
+                    vertices[vertexIndex + 3] = (float)rand.NextDouble();//size2
+                    vertices[vertexIndex + 4] = (float)rand.NextDouble();//size3
+                    vertices[vertexIndex + 5] = (float)rand.NextDouble();//opacity1
+                    vertices[vertexIndex + 6] = (float)rand.NextDouble();//opacity2
+                    vertices[vertexIndex + 7] = (float)rand.NextDouble();//opacity3
+                }
+                GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+
+                timeEnd = _timer.ElapsedMilliseconds;
+                Thread.Sleep((int)(frameTime - (timeEnd - timeStart)));//roughly sync updates to frame speed adjusting for this thread's processing time
+            }
+
+        }
         protected override void OnLoad()
         {
             var verts = vertices.ToList();
             var rand = new Random();
             //for(int i = 0; i<140000; i++)
-            for (int i = 0; i<10000; i++)
+            for (int i = 0; i<10; i++)
             {
-                verts.Add((float)rand.NextDouble()*2-1);
-                verts.Add((float)rand.NextDouble()*2- 1);
+                verts.Add((float)rand.NextDouble());
+                verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
@@ -70,6 +108,7 @@ namespace openTKCircleThin
             PointVertexArrayBuffer = GL.GenBuffer();//make triangle object
 
             shader = new PointShader(ClientSize, "CircleLayerShader.vert", "CircleShader.frag");
+            texShader = new TextureShader("ScreenTriangle.vert", "Texture.frag");
 
 
             PointArrayObject = GL.GenVertexArray();
@@ -103,9 +142,39 @@ namespace openTKCircleThin
             TwoTriangleElementBuffer = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
             GL.BufferData(BufferTarget.ElementArrayBuffer, indices.Length * sizeof(uint), indices, BufferUsageHint.StaticDraw);
+
+            CheckGPUErrors("Error Loading before Float Buffer");//just in case
+
+            FloatMapBuffer = GL.GenFramebuffer();
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, FloatMapBuffer);
+
+            CheckGPUErrors("Error Loading Float Buffer");
+
+            FloatMapTexture = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, FloatMapTexture);
+            GL.TexImage2D(TextureTarget2d.Texture2D, 0, TextureComponentCount.Alpha16fExt, shader.ViewPortSize.X, shader.ViewPortSize.Y, 0, PixelFormat.Alpha, PixelType.Float, IntPtr.Zero);
+
+            CheckGPUErrors("Error Loading Float Texture:");
+
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget2d.Texture2D, 0, 0);
+
+            CheckGPUErrors("Error Binding Float Texture to Buffer:");
+
+            new Thread(ProcessingLoopFake).Start();
             base.OnLoad();
         }
-       
+
+        private void CheckGPUErrors(string errorPrefix)
+        {
+            ErrorCode err;
+
+            while ((err = GL.GetError()) != ErrorCode.NoError)
+            {
+                // Process/log the error.
+                Console.WriteLine(errorPrefix + err);
+            }
+        }
+
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             GL.Clear(ClearBufferMask.ColorBufferBit); 
@@ -115,24 +184,26 @@ namespace openTKCircleThin
         }
         public void DrawCircles()
         {
+            //draw opacities to float buffer
             shader.Use();
-
-
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, FloatMapBuffer);
             GL.DrawElementsInstanced(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt ,(IntPtr)0,(vertices.Length - 12) / 8);
-            //GL.DrawArraysInstanced(PrimitiveType.TriangleStrip, 0, 4, (vertices.Length - 12) / 5);
 
-            ErrorCode err;
-            while ((err = GL.GetError()) != ErrorCode.NoError)
-            {
-                // Process/log the error.
-                Console.WriteLine("Error rendering:" + err);
-            }
+            CheckGPUErrors("Error rendering to float buffer:");
+
+            //draw float buffer from texture to back buffer
+            texShader.Use(FloatMapTexture);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0); 
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+            CheckGPUErrors("Error rendering to back buffer:");
         }
         protected override void OnUnload()
         {
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             GL.DeleteBuffer(PointVertexArrayBuffer);
             GL.DeleteVertexArray(PointArrayObject);
+            GL.DeleteFramebuffer(FloatMapBuffer);
             shader.Dispose();
             base.OnUnload();
         }

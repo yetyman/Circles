@@ -8,5 +8,5 @@ out vec4 FragColor;
 
 void main()
 {
-	FragColor = vec4(LayerColor.rgb, texture(opacityMap, texCoord).a * LayerColor.a);
+	FragColor = vec4(LayerColor.rgb, texture(opacityMap, texCoord).r * LayerColor.a);
 }

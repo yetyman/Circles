@@ -9,12 +9,12 @@ uniform int layer;
 //uniform float pointSizeMax;
 
 out float size;
-out float cOpacity;
+out float circleOpacity;
 out vec3 centerPoint;
 void main()
 {
     size = aSize[layer];
-    cOpacity = aOpacity[layer];
+    circleOpacity = aOpacity[layer];
     centerPoint = vec3(aPosition*2-1,0);
     gl_Position = vec4(aCorner*aSize[layer] + vec3(aPosition*2-1, 0), 1.0);
     //gl_PointSize = (pointSizeMax-pointSizeMin)*aSize[layer]+pointSizeMin;

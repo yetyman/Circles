@@ -1,8 +1,8 @@
 ﻿#version 430 core
-out float FragColor;
+out vec4 FragColor;
 in vec4 circleColor;
 in float size;
-in float cOpacity;
+in float circleOpacity;
 in vec3 centerPoint;
 
 uniform vec2 viewPortSize;
@@ -13,5 +13,5 @@ void main()
     vec2 normalizedCenterPoint = (centerPoint.xy +1)/2;
     vec2 normalizedCoordPoint = gl_FragCoord.xy/viewPortSize;
     float opacity = max(normalizedSize/2-length(normalizedCenterPoint.xy - normalizedCoordPoint.xy),0)/(normalizedSize/2);
-    FragColor = aColor.a*opacity*cOpacity;
+    FragColor = vec4(aColor.a*opacity*circleOpacity,0,0,0);
 }

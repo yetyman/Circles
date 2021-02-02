@@ -1,4 +1,4 @@
-﻿using OpenTK.Graphics.ES30;
+﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.Common;
 using System;
 using System.Collections.Generic;
@@ -24,7 +24,7 @@ namespace openTKCircleThin
              .5f,  .5f, 0.0f,  //Top-right vertex
              .5f, -.5f, 0.0f,    //Bottom-right vertex
              
-              .25f, .75f,//position
+              .45f, .75f,//position
              .4f, .5f, .12f,//sizes
              .4f, .1f, .12f,//opacities
 
@@ -83,7 +83,7 @@ namespace openTKCircleThin
                 GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
 
                 timeEnd = _timer.ElapsedMilliseconds;
-                Thread.Sleep((int)(frameTime - (timeEnd - timeStart)));//roughly sync updates to frame speed adjusting for this thread's processing time
+                Thread.Sleep(Math.Max((int)(frameTime - (timeEnd - timeStart)),0));//roughly sync updates to frame speed adjusting for this thread's processing time
             }
 
         }
@@ -99,11 +99,35 @@ namespace openTKCircleThin
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble());
+                verts.Add((float)rand.NextDouble() * .001f);
+                verts.Add((float)rand.NextDouble() * .001f);
+                verts.Add((float)rand.NextDouble() * .001f);
             }
             vertices = verts.ToArray();
+
+            FloatMapBuffer = GL.GenFramebuffer();
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, FloatMapBuffer);
+
+            CheckGPUErrors("Error Loading Float Buffer");
+
+            FloatMapTexture = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, FloatMapTexture);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R16f, ClientSize.X, ClientSize.Y, 0, PixelFormat.Red, PixelType.Float, IntPtr.Zero);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (float)TextureMinFilter.Nearest);
+            CheckGPUErrors("Error Loading Float Texture:");
+
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, FloatMapTexture, 0);
+
+            CheckGPUErrors("Error Binding Float Texture to Buffer:");
+
+            var status = GL.CheckNamedFramebufferStatus(FloatMapBuffer, FramebufferTarget.Framebuffer);
+            if (status != FramebufferStatus.FramebufferComplete)
+                Console.WriteLine("FBO not complete:" + status);
+
+            CheckGPUErrors("Error completing frame buffer:");
+
+
+
             GL.ClearColor(0f, 0f, 0f, 0.0f);
             PointVertexArrayBuffer = GL.GenBuffer();//make triangle object
 
@@ -145,22 +169,7 @@ namespace openTKCircleThin
 
             CheckGPUErrors("Error Loading before Float Buffer");//just in case
 
-            FloatMapBuffer = GL.GenFramebuffer();
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, FloatMapBuffer);
-
-            CheckGPUErrors("Error Loading Float Buffer");
-
-            FloatMapTexture = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, FloatMapTexture);
-            GL.TexImage2D(TextureTarget2d.Texture2D, 0, TextureComponentCount.Alpha16fExt, shader.ViewPortSize.X, shader.ViewPortSize.Y, 0, PixelFormat.Alpha, PixelType.Float, IntPtr.Zero);
-
-            CheckGPUErrors("Error Loading Float Texture:");
-
-            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget2d.Texture2D, 0, 0);
-
-            CheckGPUErrors("Error Binding Float Texture to Buffer:");
-
-            new Thread(ProcessingLoopFake).Start();
+            //new Thread(ProcessingLoopFake).Start();
             base.OnLoad();
         }
 
@@ -177,7 +186,7 @@ namespace openTKCircleThin
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
-            GL.Clear(ClearBufferMask.ColorBufferBit); 
+            GL.Clear(ClearBufferMask.ColorBufferBit);
             DrawCircles();
             Context.SwapBuffers();
             base.OnRenderFrame(e);
@@ -186,7 +195,10 @@ namespace openTKCircleThin
         {
             //draw opacities to float buffer
             shader.Use();
+            CheckGPUErrors("Error using opacity shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FloatMapBuffer);
+            GL.Clear(ClearBufferMask.ColorBufferBit);
+            CheckGPUErrors("Error binding to opacity fbo:");
             GL.DrawElementsInstanced(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt ,(IntPtr)0,(vertices.Length - 12) / 8);
 
             CheckGPUErrors("Error rendering to float buffer:");

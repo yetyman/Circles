@@ -14,8 +14,6 @@ namespace openTKCircleThin
         Stopwatch _timer = new Stopwatch();
         public int VertexShader { get; private set; }
         public int FragmentShader { get; private set; }
-        //public float MinPointSize { get; private set; }
-        //public float MaxPointSize { get; private set; }
         public int PositionLocation { get; private set; }
         public int SizeLocation { get; private set; }
         public int OpacityLocation { get; private set; }
@@ -25,8 +23,6 @@ namespace openTKCircleThin
         public int ColorLocation { get; private set; }
         public Vector2i ViewPortSize { get; internal set; }
 
-        //public int PointSizeMinLocation { get; private set; }
-        //public int PointSizeMaxLocation { get; private set; }
         public PointShader(Vector2i viewPortSize, string vertexPath, string fragmentPath)
         {
             ViewPortSize = viewPortSize;
@@ -99,11 +95,9 @@ namespace openTKCircleThin
 
 
 
-            ColorLocation = GL.GetUniformLocation(Handle, "aColor");
             LayerLocation = GL.GetUniformLocation(Handle, "layer");
+            ColorLocation = GL.GetUniformLocation(Handle, "aColor");
             ViewportSizeLocation = GL.GetUniformLocation(Handle, "viewPortSize");
-            //PointSizeMinLocation = GL.GetUniformLocation(Handle, "pointSizeMin");
-            //PointSizeMaxLocation = GL.GetUniformLocation(Handle, "pointSizeMax");
 
         }
         public int GetAttribLocation(string attribName)
@@ -113,17 +107,13 @@ namespace openTKCircleThin
         public void Use()
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+            GL.BlendFunc(BlendingFactorSrc.SrcColor, BlendingFactorDest.DstColor);
+            GL.BlendEquation(BlendEquationMode.FuncAdd);
+            GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
-            double timeValue = _timer.Elapsed.TotalSeconds;
-            float greenValue = (float)Math.Sin(timeValue) / 4.0f + 0.5f;
-            GL.Uniform4(ColorLocation, 0.0f, greenValue, 0.0f, .01f);//don't go any lower than .02, blending issues
-            //GL.Uniform4(ColorLocation, 0.0f, greenValue, 0.0f, .007f);
+            GL.Uniform4(ColorLocation, 1f, 0,0,1);
             GL.Uniform2(ViewportSizeLocation, ViewPortSize);
             GL.Uniform1(LayerLocation, 1);
-            //GL.Uniform1(PointSizeMinLocation, MinPointSize);
-            //GL.Uniform1(PointSizeMaxLocation, MaxPointSize);
-            
         }
         private bool disposedValue = false;
 

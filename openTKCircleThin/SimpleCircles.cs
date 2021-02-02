@@ -24,25 +24,25 @@ namespace openTKCircleThin
              .5f,  .5f, 0.0f,  //Top-right vertex
              .5f, -.5f, 0.0f,    //Bottom-right vertex
              
-              .45f, .75f,//position
-             .4f, .5f, .12f,//sizes
-             .4f, .1f, .12f,//opacities
+             // .45f, .75f,//position
+             //.4f, .5f, .12f,//sizes
+             //.4f, .5f, .12f,//opacities
 
-              .2f, .8f,//position
-             .2f, .7f, .2f,//sizes
-             .4f, .2f, .12f,//opacities
+             // .6f, .8f,//position
+             //.2f, .5f, .2f,//sizes
+             //.4f, 1f, .12f,//opacities
 
-              .5f, .5f,//position
-             .4f, 1f, .12f,//sizes
-             .4f, .3f, .12f,//opacities
+             // .5f, .5f,//position
+             //.4f, 1f, .12f,//sizes
+             //.4f, .3f, .12f,//opacities
 
-              .9f, .15f,//position
-             .2f, .7f, .2f,//sizes
-             .4f, .4f, .12f,//opacities
+             // .9f, .15f,//position
+             //.2f, .7f, .2f,//sizes
+             //.4f, .2f, .12f,//opacities
 
-              .7f, .8f,//position
-             .2f, .5f, .2f,//sizes
-             .4f, .8f, .12f,//opacities
+             // .7f, .8f,//position
+             //.2f, .5f, .2f,//sizes
+             //.4f, .8f, .12f,//opacities
 
         };
 
@@ -52,6 +52,26 @@ namespace openTKCircleThin
         };
         public SimpleCircles(int width, int height, string title) : base(width, height, title)
         {
+        }
+        Random rand = new Random();
+        
+        private void UpdateLocations()
+        {
+            
+            for (int i = 0; i < 1000; i++)
+            {
+                //update all kinds of values
+                int vertexIndex = rand.Next(0, (vertices.Length - 12) / 8) * 8 + 12;
+                vertices[vertexIndex + 0] = (float)rand.NextDouble();//position1
+                vertices[vertexIndex + 1] = (float)rand.NextDouble();//position2
+                vertices[vertexIndex + 2] = (float)rand.NextDouble();//size1
+                vertices[vertexIndex + 3] = (float)rand.NextDouble();//size2
+                vertices[vertexIndex + 4] = (float)rand.NextDouble();//size3
+                vertices[vertexIndex + 5] = (float)rand.NextDouble() * overlap / count;//opacity1
+                vertices[vertexIndex + 6] = (float)rand.NextDouble() * overlap / count;//opacity2
+                vertices[vertexIndex + 7] = (float)rand.NextDouble() * overlap / count;//opacity3
+            }
+            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
         }
         private void ProcessingLoopFake()
         {
@@ -65,43 +85,31 @@ namespace openTKCircleThin
             {
                 timeStart = _timer.ElapsedMilliseconds;
 
-                // 2. copy our vertices array in a buffer for OpenGL to use
-                //GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
-                for (int i = 0; i < 1000; i++)
-                {
-                    //update all kinds of values
-                    int vertexIndex = rand.Next(0, (vertices.Length - 12) / 8) * 8 + 12;
-                    vertices[vertexIndex + 0] = (float)rand.NextDouble();//position1
-                    vertices[vertexIndex + 1] = (float)rand.NextDouble();//position2
-                    vertices[vertexIndex + 2] = (float)rand.NextDouble();//size1
-                    vertices[vertexIndex + 3] = (float)rand.NextDouble();//size2
-                    vertices[vertexIndex + 4] = (float)rand.NextDouble();//size3
-                    vertices[vertexIndex + 5] = (float)rand.NextDouble();//opacity1
-                    vertices[vertexIndex + 6] = (float)rand.NextDouble();//opacity2
-                    vertices[vertexIndex + 7] = (float)rand.NextDouble();//opacity3
-                }
-                GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+                UpdateLocations();
 
                 timeEnd = _timer.ElapsedMilliseconds;
                 Thread.Sleep(Math.Max((int)(frameTime - (timeEnd - timeStart)),0));//roughly sync updates to frame speed adjusting for this thread's processing time
             }
 
         }
+        int count = 10000;
+        float overlap = 60;
         protected override void OnLoad()
         {
             var verts = vertices.ToList();
             var rand = new Random();
             //for(int i = 0; i<140000; i++)
-            for (int i = 0; i<10; i++)
+            
+            for (int i = 0; i < count; i++)
             {
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble() * .001f);
-                verts.Add((float)rand.NextDouble() * .001f);
-                verts.Add((float)rand.NextDouble() * .001f);
+                verts.Add((float)rand.NextDouble() * overlap / count);
+                verts.Add((float)rand.NextDouble() * overlap / count);
+                verts.Add((float)rand.NextDouble() * overlap / count);
             }
             vertices = verts.ToArray();
 
@@ -114,6 +122,7 @@ namespace openTKCircleThin
             GL.BindTexture(TextureTarget.Texture2D, FloatMapTexture);
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R16f, ClientSize.X, ClientSize.Y, 0, PixelFormat.Red, PixelType.Float, IntPtr.Zero);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (float)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (float)TextureMagFilter.Nearest);
             CheckGPUErrors("Error Loading Float Texture:");
 
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, FloatMapTexture, 0);
@@ -183,9 +192,14 @@ namespace openTKCircleThin
                 Console.WriteLine(errorPrefix + err);
             }
         }
-
+        protected override void OnUpdateFrame(FrameEventArgs args)
+        {
+            UpdateLocations();
+            base.OnUpdateFrame(args);
+        }
         protected override void OnRenderFrame(FrameEventArgs e)
         {
+            
             GL.Clear(ClearBufferMask.ColorBufferBit);
             DrawCircles();
             Context.SwapBuffers();
@@ -199,6 +213,7 @@ namespace openTKCircleThin
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FloatMapBuffer);
             GL.Clear(ClearBufferMask.ColorBufferBit);
             CheckGPUErrors("Error binding to opacity fbo:");
+
             GL.DrawElementsInstanced(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt ,(IntPtr)0,(vertices.Length - 12) / 8);
 
             CheckGPUErrors("Error rendering to float buffer:");

@@ -81,9 +81,11 @@ namespace openTKCircleThin
         public void Use(int textureId)
         {
             GL.UseProgram(Handle);
+            GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+            GL.Enable(EnableCap.Blend);
             double timeValue = _timer.Elapsed.TotalSeconds;
             float greenValue = (float)Math.Sin(timeValue) / 4.0f + 0.5f;
-            GL.Uniform4(ColorLocation, .5f, greenValue, 0.0f, 1f);
+            GL.Uniform4(ColorLocation, 0, greenValue, 0f, 1f);
 
             CheckGPUErrors("Error setting color:");
 

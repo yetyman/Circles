@@ -107,7 +107,7 @@ namespace openTKCircleThin
         public void Use()
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactorSrc.SrcColor, BlendingFactorDest.DstColor);
+            GL.BlendFunc(BlendingFactorSrc.One, BlendingFactorDest.One);
             GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);

@@ -1,4 +1,4 @@
-﻿using OpenTK.Graphics.ES30;
+﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -107,7 +107,7 @@ namespace openTKCircleThin
         public void Use()
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactorSrc.One, BlendingFactorDest.One);
+            GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
             GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);

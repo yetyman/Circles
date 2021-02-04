@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace openTKCircleThin
+namespace funShapes
 {
     public class SimpleWindow : GameWindow
     {

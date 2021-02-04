@@ -1,23 +1,39 @@
 ﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 
-namespace openTKCircleThin
+namespace funShapes
 {
-    class TextureShader
+    class PointShader
     {
         int Handle;
-        Stopwatch _timer;
+        Stopwatch _timer = new Stopwatch();
         public int VertexShader { get; private set; }
         public int FragmentShader { get; private set; }
-        public int OpacityTextureLocation { get; private set; }
+        public int PositionLocation { get; private set; }
+        public int SizeLocation { get; private set; }
+        public int ZoomLocation { get; private set; }
+        public int RowOffsetLocation { get; private set; }
+        public int RowScaleLocation { get; private set; }
+        public int ColumnCountLocation { get; private set; }
+        public int SquareCornerLocation { get; private set; }
+        public int LayerLocation { get; private set; }
+        public int ViewportSizeLocation { get; private set; }
         public int ColorLocation { get; private set; }
-        public TextureShader(string vertexPath, string fragmentPath)
+        public float PointSize { get; set; }
+        public Vector3 OddRowOffset { get; set; }
+        public Vector3 OddRowHeightScale { get; set; }
+        public int ColumnCount { get; set; }
+        public Vector2i ViewPortSize { get; internal set; }
+
+        public PointShader(Vector2i viewPortSize, string vertexPath, string fragmentPath)
         {
-            _timer = new Stopwatch();
+            ViewPortSize = viewPortSize;
+            _timer.Start();
             string VertexShaderSource;
 
             using (StreamReader reader = new StreamReader(vertexPath, Encoding.UTF8))
@@ -31,6 +47,10 @@ namespace openTKCircleThin
             {
                 FragmentShaderSource = reader.ReadToEnd();
             }
+
+            ///.vert implementation specific
+            PositionLocation = 0;
+            SquareCornerLocation = 1;
 
             VertexShader = GL.CreateShader(ShaderType.VertexShader);
             GL.ShaderSource(VertexShader, VertexShaderSource);
@@ -68,45 +88,32 @@ namespace openTKCircleThin
 
 
 
-            ColorLocation = GL.GetUniformLocation(Handle, "LayerColor");
-            OpacityTextureLocation = GL.GetUniformLocation(Handle, "opacityMap");
-
-            _timer.Start();
+            SizeLocation = GL.GetUniformLocation(Handle, "aSize");
+            ZoomLocation = GL.GetUniformLocation(Handle, "aZoom");
+            RowOffsetLocation = GL.GetUniformLocation(Handle, "aRowOffset");
+            RowScaleLocation = GL.GetUniformLocation(Handle, "aRowScale");
+            ColumnCountLocation = GL.GetUniformLocation(Handle, "aColumnCount");
+            ColorLocation = GL.GetUniformLocation(Handle, "aColor");
+            ViewportSizeLocation = GL.GetUniformLocation(Handle, "viewPortSize");
 
         }
         public int GetAttribLocation(string attribName)
         {
             return GL.GetAttribLocation(Handle, attribName);
         }
-        public void Use(int textureId)
+        public void Use()
         {
             GL.UseProgram(Handle);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.Enable(EnableCap.Blend);
-            double timeValue = _timer.Elapsed.TotalSeconds;
-            float greenValue = (float)Math.Sin(timeValue) / 4.0f + 0.5f;
-            GL.Uniform4(ColorLocation, 0, greenValue, 0f, 1f);
-
-            CheckGPUErrors("Error setting color:");
-
-            GL.ActiveTexture(TextureUnit.Texture0); //select texture unit(hardware) slot
-            GL.BindTexture(TextureTarget.Texture2D, textureId); //set the slot to the pointer to texture in gpu memory
-            GL.Uniform1(OpacityTextureLocation, 0); //set sampler2D to Texture Processing Unit 0. sampler2D implicitly has a different set of locations, they are the Texture Units(hardware) in the GPU
-
-            CheckGPUErrors("Error setting texture:");
+            GL.Uniform4(ColorLocation, 0, 0,1f,.5f);
+            GL.Uniform2(ViewportSizeLocation, ViewPortSize);
+            GL.Uniform1(ZoomLocation, 1f);
+            GL.Uniform1(SizeLocation, PointSize);
+            GL.Uniform3(RowOffsetLocation, OddRowOffset);
+            GL.Uniform3(RowScaleLocation, OddRowHeightScale);
+            GL.Uniform1(ColumnCountLocation, ColumnCount);
         }
-
-        private void CheckGPUErrors(string errorPrefix)
-        {
-            ErrorCode err;
-
-            while ((err = GL.GetError()) != ErrorCode.NoError)
-            {
-                // Process/log the error.
-                Console.WriteLine(errorPrefix + err);
-            }
-        }
-
         private bool disposedValue = false;
 
         protected virtual void Dispose(bool disposing)
@@ -119,7 +126,7 @@ namespace openTKCircleThin
             }
         }
 
-        ~TextureShader()
+        ~PointShader()
         {
             GL.DeleteProgram(Handle);
         }

@@ -3,3 +3,9 @@
 /openTKCircleThin/.vs
 /openTKCircleThin/bin
 /openTKCircleThin/obj
+FunShapes/obj/FunShapes.csproj.nuget.g.targets
+FunShapes/obj/FunShapes.csproj.nuget.g.props
+FunShapes/bin/Debug/netcoreapp3.1/FunShapes.deps.json
+FunShapes/obj/Debug/netcoreapp3.1/FunShapes.csproj.FileListAbsolute.txt
+FunShapes/obj/FunShapes.csproj.nuget.dgspec.json
+FunShapes/obj/project.assets.json

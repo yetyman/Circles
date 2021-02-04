@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 
-namespace openTKCircleThin
+namespace funShapes
 {
 class Shader
 {

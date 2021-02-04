@@ -9,7 +9,8 @@ namespace test_test
         {
             Console.WriteLine("Hello World!");
             //var game = new openTKCircleThin.SimpleTriangles(500, 500, "Learning OpenTK");
-            var game = new openTKCircleThin.SimpleCircles(500, 500, "Learning points in OpenTK");
+            //var game = new openTKCircleThin.SimpleCircles(500, 500, "Learning points in OpenTK");
+            var game = new funShapes.SimpleShapes(500, 500, "Learning fans in OpenTK");
             game.Run();
 
             //var gfx = new openTKCircleThin.CircleLayer();

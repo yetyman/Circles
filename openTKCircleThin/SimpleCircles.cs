@@ -231,7 +231,9 @@ namespace openTKCircleThin
             GL.DeleteBuffer(PointVertexArrayBuffer);
             GL.DeleteVertexArray(PointArrayObject);
             GL.DeleteFramebuffer(FloatMapBuffer);
+            GL.DeleteTexture(FloatMapTexture);
             shader.Dispose();
+            texShader.Dispose();
             base.OnUnload();
         }
         protected override void OnResize(ResizeEventArgs e)

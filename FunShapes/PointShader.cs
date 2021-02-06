@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 
-namespace funShapes
+namespace FunShapes
 {
     class PointShader
     {
@@ -20,15 +20,22 @@ namespace funShapes
         public int RowOffsetLocation { get; private set; }
         public int RowScaleLocation { get; private set; }
         public int ColumnCountLocation { get; private set; }
-        public int SquareCornerLocation { get; private set; }
+        public int TexCoordLocation { get; private set; }
+        public int ShapeCornerLocation { get; private set; }
         public int LayerLocation { get; private set; }
         public int ViewportSizeLocation { get; private set; }
-        public int ColorLocation { get; private set; }
+        public int TextureFrameLocation { get; private set; }
+        public int TextureIdLocation { get; private set; }
+        public int TextureOnePixelWidthLocation { get; private set; }
+        public int CornersLocation { get; private set; }
+        public int CornerOffsetLocation { get; private set; }
         public float PointSize { get; set; }
         public Vector3 OddRowOffset { get; set; }
         public Vector3 OddRowHeightScale { get; set; }
         public int ColumnCount { get; set; }
         public Vector2i ViewPortSize { get; internal set; }
+        public Vector2 TextureFrame { get; internal set; }
+        public Vector2 TextureOnePixelWidth { get; internal set; }
 
         public PointShader(Vector2i viewPortSize, string vertexPath, string fragmentPath)
         {
@@ -50,7 +57,7 @@ namespace funShapes
 
             ///.vert implementation specific
             PositionLocation = 0;
-            SquareCornerLocation = 1;
+            TexCoordLocation = 1;
 
             VertexShader = GL.CreateShader(ShaderType.VertexShader);
             GL.ShaderSource(VertexShader, VertexShaderSource);
@@ -93,8 +100,12 @@ namespace funShapes
             RowOffsetLocation = GL.GetUniformLocation(Handle, "aRowOffset");
             RowScaleLocation = GL.GetUniformLocation(Handle, "aRowScale");
             ColumnCountLocation = GL.GetUniformLocation(Handle, "aColumnCount");
-            ColorLocation = GL.GetUniformLocation(Handle, "aColor");
             ViewportSizeLocation = GL.GetUniformLocation(Handle, "viewPortSize");
+            TextureFrameLocation = GL.GetUniformLocation(Handle, "texFrame");
+            TextureIdLocation = GL.GetUniformLocation(Handle, "tex_id");
+            TextureOnePixelWidthLocation = GL.GetUniformLocation(Handle, "texOnePixel");
+            CornersLocation = GL.GetUniformLocation(Handle, "corners");
+            CornerOffsetLocation = GL.GetUniformLocation(Handle, "aCornerOffset");
 
         }
         public int GetAttribLocation(string attribName)
@@ -104,10 +115,12 @@ namespace funShapes
         public void Use()
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
             GL.Enable(EnableCap.Blend);
-            GL.Uniform4(ColorLocation, 0, 0,1f,.5f);
+            GL.DepthMask(false);
             GL.Uniform2(ViewportSizeLocation, ViewPortSize);
+            GL.Uniform2(TextureFrameLocation, TextureFrame);
+            GL.Uniform2(TextureOnePixelWidthLocation, TextureOnePixelWidth);
             GL.Uniform1(ZoomLocation, 1f);
             GL.Uniform1(SizeLocation, PointSize);
             GL.Uniform3(RowOffsetLocation, OddRowOffset);

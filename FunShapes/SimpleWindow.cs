@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace funShapes
+namespace FunShapes
 {
     public class SimpleWindow : GameWindow
     {

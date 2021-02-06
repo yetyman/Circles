@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 
-namespace funShapes
+namespace FunShapes
 {
 class Shader
 {

@@ -1,6 +1,7 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,18 +9,19 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace funShapes
+namespace FunShapes
 {
     public class SimpleShapes : SimpleWindow
     {
         int PointVertexArrayBuffer;
         int PointArrayObject;
-        int TwoTriangleElementBuffer;
+        int ElementBufferObject;
 
-        int rows = 5;
-        int columns = 4;
+        int rows = 30;
+        int columns = 10;
 
         PointShader shader;
+        TextureStrip TexStrip;
         float[] squareCorners = {
                0,    0,   0f,
             -.5f,  .5f, 0.0f,     //Top-left vertex
@@ -58,8 +60,7 @@ namespace funShapes
 
 
 
-
-        float[] vertices = {
+        float[] corners = {
                0,    0,   0f,
             -.5f,  .5f, 0.0f,     //Top-left vertex
             -.5f, -.5f, 0.0f,     //Bottom-left vertex
@@ -69,7 +70,11 @@ namespace funShapes
              .5f,  .5f, 0.0f,     //Top-right vertex
              .5f,  .5f, 0.0f,     //Top-right vertex
             -.5f,  .5f, 0.0f,     //Top-left vertex
-             
+        };
+        float[] vertices = {
+            .5f, 0,///0
+            0, 1,//1
+            1, 1,//2
              // .45f, .75f,//position
              //.4f, .5f, .12f,//sizes
 
@@ -89,13 +94,13 @@ namespace funShapes
 
         uint[] indices = {  // note that we start from 0!
             0, 1, 2,   // first triangle
-            0, 2, 3,    // second triangle
-            0, 3, 4,    // second triangle
-            0, 4, 5,    // second triangle
-            0, 5, 6,    // second triangle
-            0, 6, 7,    // second triangle
-            0, 7, 8,     
-            0, 8, 1,
+            //0, 2, 3,    // second triangle
+            //0, 3, 4,    // second triangle
+            //0, 4, 5,    // second triangle
+            //0, 5, 6,    // second triangle
+            //0, 6, 7,    // second triangle
+            //0, 7, 8,     
+            //0, 8, 1,
         };
         public SimpleShapes(int width, int height, string title) : base(width, height, title)
         {
@@ -104,26 +109,33 @@ namespace funShapes
         
         private void UpdateLocations()
         {
-            for(int i = 0; i <squareCorners.Length; i++)
+
+            CheckGPUErrors("Error after last frame to back buffer:");
+            for (int i = 0; i <squareCorners.Length; i++)
             {
-                var transition = (float)MathHelper.Sin(_timer.ElapsedMilliseconds / 200f) / 2 + .5f;
-                shader.OddRowHeightScale = new Vector3(1, MathHelper.Lerp(1, 0.8661f, transition), 1);
-                shader.OddRowOffset = new Vector3(MathHelper.Lerp(0, -.3333f,transition), 0, 0);
-                vertices[i] = MathHelper.Lerp(octCorners[i], hexCorners[i], transition);
+                var time = _timer.ElapsedMilliseconds / 8000f;
+                time = time % 1f;
+                if (time <= .5f) 
+                {
+                    time = time * 2;
+                    var transition = (float)MathHelper.Cos(2*Math.PI * time) / 2 + .5f;//one cycle every second
+                    shader.OddRowHeightScale = new Vector3(1, MathHelper.Lerp(1, 0.8661f, transition), 1);
+                    shader.OddRowOffset = new Vector3(MathHelper.Lerp(0, -1 / (columns - 1f), transition), 0, 0); 
+                    corners[i] = MathHelper.Lerp(squareCorners[i], hexCorners[i], transition);
+                }
+                else
+                {
+                    time = time * 2-.5f;
+                    var transition = (float)MathHelper.Cos(2*Math.PI * time) / 2 + .5f;//one cycle every second
+
+                    shader.OddRowHeightScale = new Vector3(1, MathHelper.Lerp(0.8661f, 1, transition), 1);
+                    shader.OddRowOffset = new Vector3(MathHelper.Lerp(-1 / (columns - 1f), 0, transition), 0, 0); 
+                    corners[i] = MathHelper.Lerp(hexCorners[i], octCorners[i], transition);
+                }
             }
 
-            //for (int i = 0; i < 1; i++)
-            //{
-            //    //update all kinds of values
-            //    int vertexIndex = rand.Next(0, (vertices.Length - 27) / 5) * 5 + 27;
-            //    for (int v = 0; v < 5; v++)
-            //    {
-            //        var randomValue = (float)rand.NextDouble() * .002f - .001f;
-            //        if (vertices[vertexIndex + v] + randomValue <= 1 && vertices[vertexIndex + v] + randomValue >= 0)
-            //            vertices[vertexIndex + v] += randomValue;
-            //    }
-            //}
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+            GL.Uniform3(shader.CornersLocation,squareCorners.Length/3, corners);
+            CheckGPUErrors("Error updating location:");
         }
         Stopwatch _timer = new Stopwatch();
         private void ProcessingLoopFake()
@@ -146,6 +158,7 @@ namespace funShapes
         int count => rows * columns;
         protected override void OnLoad()
         {
+            TexStrip = new TextureStrip("textureStrip.png", 96+2);//plus two yes. i make the textures just a pixel wider in the middle than they'll appear so that sampling never bleeds. stop gap? idk. hey me!, go into photoshop tomorrow and add one more pixel in the middle of each texture. thanks.
             var verts = vertices.ToList();
             var rand = new Random();
 
@@ -168,6 +181,9 @@ namespace funShapes
             shader = new PointShader(ClientSize, "Shape.vert", "Shape.frag");
             shader.PointSize = 2/(float)(columns-1);
             shader.ColumnCount = columns;
+            shader.TextureFrame = new Vector2(TexStrip.TextureWidth/ (float)TexStrip.Width,1);
+            shader.TextureOnePixelWidth = new Vector2(1/ (float)TexStrip.Width,0);
+
 
             PointArrayObject = GL.GenVertexArray();
 
@@ -182,23 +198,22 @@ namespace funShapes
             // 3. then set our vertex attributes pointers
             //which attribute are we settings, how many is it, what is each it?, should it be normalized?, what's the total size?,
             //TODO: i may not want to normalize
-            GL.VertexAttribPointer(shader.PositionLocation, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), squareCorners.Length * sizeof(float));
+            GL.VertexAttribPointer(shader.TexCoordLocation, 2, VertexAttribPointerType.Float, false, 2 * sizeof(float), 0);
+            GL.VertexAttribPointer(shader.PositionLocation, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 6 * sizeof(float));
             GL.EnableVertexAttribArray(shader.PositionLocation);
-            //GL.VertexAttribPointer(shader.SizeLocation, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), (squareCorners.Length+2) * sizeof(float));
-            //GL.EnableVertexAttribArray(shader.SizeLocation);
-            GL.VertexAttribPointer(shader.SquareCornerLocation, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
-            GL.EnableVertexAttribArray(shader.SquareCornerLocation); 
+            GL.EnableVertexAttribArray(shader.TexCoordLocation); 
 
             GL.VertexAttribDivisor(shader.PositionLocation, 1);//use from start to end, based on instance id instead of vertex index
-            GL.VertexAttribDivisor(shader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
+            GL.VertexAttribDivisor(shader.TexCoordLocation, 0);//use from start to end, based on vertex index within instance
 
-
-            TwoTriangleElementBuffer = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, indices.Length * sizeof(uint), indices, BufferUsageHint.StaticDraw);
+            ElementBufferObject = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ElementBufferObject);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, 3 * sizeof(uint), indices, BufferUsageHint.StaticDraw);
 
             CheckGPUErrors("Error Loading before Float Buffer");//just in case
 
+            
+            shader.Use();
             //new Thread(ProcessingLoopFake).Start();
             _timer.Start();
             base.OnLoad();
@@ -222,6 +237,7 @@ namespace funShapes
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             
+            CheckGPUErrors("Error last frame:");
             GL.Clear(ClearBufferMask.ColorBufferBit);
             DrawShapes();
             Context.SwapBuffers();
@@ -231,16 +247,29 @@ namespace funShapes
         {
             //draw opacities to float buffer
             shader.Use();
+            var vertexCount = 3; ;// indices.Length;
 
-            GL.DrawElementsInstanced(PrimitiveType.TriangleFan, indices.Length, DrawElementsType.UnsignedInt ,(IntPtr)0,(vertices.Length - 27) / 5);
-
-            CheckGPUErrors("Error rendering to back buffer:");
+            GL.Uniform1(shader.TextureIdLocation, 3);
+            for (int i = 0; i < corners.Length / 3; i++)
+            {
+                GL.Uniform1(shader.CornerOffsetLocation, i);
+                GL.DrawElementsInstanced(PrimitiveType.Triangles, vertexCount, DrawElementsType.UnsignedInt, (IntPtr)0, (vertices.Length - 6) / 5);
+            }
+            GL.Uniform1(shader.TextureIdLocation, 2);
+            for (int i = 0; i < corners.Length / 3; i++)
+            {
+                GL.Uniform1(shader.CornerOffsetLocation, i);
+                GL.DrawElementsInstanced(PrimitiveType.Triangles, vertexCount, DrawElementsType.UnsignedInt, (IntPtr)0, (vertices.Length - 6) / 5);
+            }
+            CheckGPUErrors("Error rendering shapes to back buffer:");
         }
         protected override void OnUnload()
         {
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             GL.DeleteBuffer(PointVertexArrayBuffer);
             GL.DeleteVertexArray(PointArrayObject);
+            GL.DeleteBuffer(ElementBufferObject);
+
             shader.Dispose();
             base.OnUnload();
         }

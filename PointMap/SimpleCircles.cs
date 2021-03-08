@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace openTKCircleThin
+namespace PointMap
 {
     public class SimpleCircles : SimpleWindow
     {
@@ -238,7 +238,7 @@ namespace openTKCircleThin
         }
         protected override void OnResize(ResizeEventArgs e)
         {
-            shader.ViewPortSize = ClientSize; 
+            shader.ViewPortSize = ClientSize;
             GL.BindTexture(TextureTarget.Texture2D, FloatMapTexture);
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R16f, ClientSize.X, ClientSize.Y, 0, PixelFormat.Red, PixelType.Float, IntPtr.Zero);
 

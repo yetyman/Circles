@@ -9,6 +9,8 @@
   <ItemGroup>
     <ProjectReference Include="..\FunShapes\FunShapes.csproj" />
     <ProjectReference Include="..\openTKCircleThin\openTKCircleThin.csproj" />
+    <ProjectReference Include="..\PointMap\PointMap.csproj" />
+    <ProjectReference Include="..\RadiationMap\RadiationMap.csproj" />
   </ItemGroup>
 
 </Project>

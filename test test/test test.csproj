@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FuelMap\FuelMap.csproj" />
     <ProjectReference Include="..\FunShapes\FunShapes.csproj" />
     <ProjectReference Include="..\openTKCircleThin\openTKCircleThin.csproj" />
     <ProjectReference Include="..\PointMap\PointMap.csproj" />

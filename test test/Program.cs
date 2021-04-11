@@ -11,7 +11,8 @@ namespace test_test
             //var game = new openTKCircleThin.SimpleTriangles(500, 500, "Learning OpenTK");
             //var game = new openTKCircleThin.SimpleCircles(500, 500, "Learning points in OpenTK - lots of fast random gradient circles!");
             //var game = new PointMap.SimpleCircles(500, 500, "Learning points in OpenTK drawing single pixels");
-            var game = new RadiationMap.SimpleCircles(500, 500, "Learning points in OpenTK - lots of fast random gradient circles!");
+            //var game = new RadiationMap.SimpleCircles(500, 500, "Learning points in OpenTK - lots of fast random gradient circles!");
+            var game = new FuelMap.SimpleFuelBuffer(500, 500, "Learning points in OpenTK - lots of fast subtracton and division! so many views! instrumentation!");
             //var game = new FunShapes.SimpleShapes(500, 500, "Learning fans in OpenTK - cool shape changing grid");
             game.Run();
 

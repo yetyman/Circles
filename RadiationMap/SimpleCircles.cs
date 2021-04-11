@@ -16,7 +16,7 @@ namespace RadiationMap
         int TwoTriangleElementBuffer;
         int FloatMapBuffer;
         int FloatMapTexture;
-        PointShader shader;
+        BlurryCircleShader shader;
         TextureShader texShader;
         float[] vertices = {
             -.5f,  .5f, 0.0f,     //Top-left vertex
@@ -140,7 +140,7 @@ namespace RadiationMap
             GL.ClearColor(0f, 0f, 0f, 0.0f);
             PointVertexArrayBuffer = GL.GenBuffer();//make triangle object
 
-            shader = new PointShader(ClientSize, "CircleLayerShader.vert", "CircleShader.frag");
+            shader = new BlurryCircleShader(ClientSize, "CircleLayerShader.vert", "CircleShader.frag");
             texShader = new TextureShader("ScreenTriangle.vert", "Texture.frag");
 
 

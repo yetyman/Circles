@@ -10,3 +10,4 @@ D:\Users\YETY\Documents\code projects\Circles\RadiationMap\obj\Debug\netcoreapp3
 D:\Users\YETY\Documents\code projects\Circles\RadiationMap\obj\Debug\netcoreapp3.1\RadiationMap.csproj.CoreCompileInputs.cache
 D:\Users\YETY\Documents\code projects\Circles\RadiationMap\obj\Debug\netcoreapp3.1\RadiationMap.dll
 D:\Users\YETY\Documents\code projects\Circles\RadiationMap\obj\Debug\netcoreapp3.1\RadiationMap.pdb
+D:\Users\YETY\Documents\code projects\Circles\RadiationMap\obj\Debug\netcoreapp3.1\RadiationMap.csprojAssemblyReference.cache

@@ -1,32 +1,29 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Text;
 
-namespace RadiationMap
+namespace FuelMap
 {
-    class PointShader
+    class SomeMinAndDivideShader
     {
         int Handle;
-        Stopwatch _timer = new Stopwatch();
+        Stopwatch _timer;
         public int VertexShader { get; private set; }
         public int FragmentShader { get; private set; }
-        public int PositionLocation { get; private set; }
-        public int SizeLocation { get; private set; }
-        public int OpacityLocation { get; private set; }
-        public int SquareCornerLocation { get; private set; }
-        public int LayerLocation { get; private set; }
-        public int ViewportSizeLocation { get; private set; }
+        public int OpacityTextureLocation { get; private set; }
         public int ColorLocation { get; private set; }
-        public Vector2i ViewPortSize { get; internal set; }
 
-        public PointShader(Vector2i viewPortSize, string vertexPath, string fragmentPath)
+        public int FromTextureLocation { get; private set; }
+        public int SubtractTextureLocation { get; private set; }
+        public int FromTexture { get; private set; }
+        public int SubtractTexture { get; private set; }
+        public SomeMinAndDivideShader(string vertexPath, string fragmentPath, int fromTexture, int subtractTexture)
         {
-            ViewPortSize = viewPortSize;
-            _timer.Start();
+            _timer = new Stopwatch();
             string VertexShaderSource;
 
             using (StreamReader reader = new StreamReader(vertexPath, Encoding.UTF8))
@@ -40,24 +37,6 @@ namespace RadiationMap
             {
                 FragmentShaderSource = reader.ReadToEnd();
             }
-
-            //the only reason this is its own class...
-            //GL.Enable((EnableCap)All.PointSize);
-            //GL.GetFloat(GetPName.PointSizeRange, out Vector2 vec);
-            //ErrorCode err;
-            //while ((err = GL.GetError()) != ErrorCode.NoError)
-            //{
-            //    // Process/log the error.
-            //    Console.WriteLine("Error loading:" + err);
-            //}
-            //MaxPointSize = vec[1];
-            //MinPointSize = vec[0];
-
-            ///.vert implementation specific
-            PositionLocation = 0;
-            SizeLocation = 1;
-            OpacityLocation = 3;
-            SquareCornerLocation = 2;
 
             VertexShader = GL.CreateShader(ShaderType.VertexShader);
             GL.ShaderSource(VertexShader, VertexShaderSource);
@@ -95,9 +74,15 @@ namespace RadiationMap
 
 
 
-            LayerLocation = GL.GetUniformLocation(Handle, "layer");
-            ColorLocation = GL.GetUniformLocation(Handle, "aColor");
-            ViewportSizeLocation = GL.GetUniformLocation(Handle, "viewPortSize");
+            ColorLocation = GL.GetUniformLocation(Handle, "LayerColor");
+            OpacityTextureLocation = GL.GetUniformLocation(Handle, "opacityMap");
+            FromTextureLocation = GL.GetUniformLocation(Handle, "fromMap");
+            SubtractTextureLocation = GL.GetUniformLocation(Handle, "subtractMap");
+            FromTexture = fromTexture;
+            SubtractTexture = subtractTexture;
+
+
+            _timer.Start();
 
         }
         public int GetAttribLocation(string attribName)
@@ -107,14 +92,39 @@ namespace RadiationMap
         public void Use()
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
+            GL.BlendFunc(BlendingFactor.Zero, BlendingFactor.One);
             GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
-            GL.Uniform4(ColorLocation, 1f, 0,0,1);
-            GL.Uniform2(ViewportSizeLocation, ViewPortSize);
-            GL.Uniform1(LayerLocation, 1);
+            //double timeValue = _timer.Elapsed.TotalSeconds;
+            //float greenValue = (float)Math.Sin(timeValue) / 4.0f + 0.5f;
+            GL.Uniform4(ColorLocation, 0, 1, 0f, 1f);
+
+            CheckGPUErrors("Error setting color:");
+
+            GL.ActiveTexture(TextureUnit.Texture0); //select texture unit(hardware) slot
+            GL.BindTexture(TextureTarget.Texture2D, FromTexture); //set the slot to the pointer to texture in gpu memory
+
+            GL.ActiveTexture(TextureUnit.Texture1); //select texture unit(hardware) slot
+            GL.BindTexture(TextureTarget.Texture2D, SubtractTexture); //set the slot to the pointer to texture in gpu memory
+
+            GL.Uniform1(FromTextureLocation, 0);
+            GL.Uniform1(SubtractTextureLocation, 1);
+
+            CheckGPUErrors("Error setting texture:");
         }
+
+        private void CheckGPUErrors(string errorPrefix)
+        {
+            ErrorCode err;
+
+            while ((err = GL.GetError()) != ErrorCode.NoError)
+            {
+                //Process/log the error.
+                Console.WriteLine(errorPrefix + err);
+            }
+        }
+
         private bool disposedValue = false;
 
         protected virtual void Dispose(bool disposing)
@@ -127,7 +137,7 @@ namespace RadiationMap
             }
         }
 
-        ~PointShader()
+        ~SomeMinAndDivideShader()
         {
             GL.DeleteProgram(Handle);
         }

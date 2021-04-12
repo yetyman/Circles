@@ -19,7 +19,7 @@ namespace FuelMap
         public int FromTexture { get; private set; }
         public int SubtractTexture { get; private set; }
         public int AddValueLocation { get; private set; }
-        public float AddValue { get; private set; }
+        public float AddValue { get; set; }
         public SomeSubtractAndAddShader(string vertexPath, string fragmentPath, int fromTexture, int subtractTexture, float addValue)
         {
             _timer = new Stopwatch();
@@ -92,7 +92,7 @@ namespace FuelMap
         {
             GL.UseProgram(Handle);
             GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
-            GL.BlendEquation(BlendEquationMode.FuncSubtract);
+            GL.BlendEquation(BlendEquationMode.FuncReverseSubtract);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             //double timeValue = _timer.Elapsed.TotalSeconds;
@@ -109,6 +109,7 @@ namespace FuelMap
 
             GL.Uniform1(FromTextureLocation, 0);
             GL.Uniform1(SubtractTextureLocation, 1);
+            GL.Uniform1(AddValueLocation, AddValue);
 
             CheckGPUErrors("Error setting texture:");
         }

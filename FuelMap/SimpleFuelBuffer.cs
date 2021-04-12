@@ -76,9 +76,9 @@ namespace FuelMap
                 vertices[vertexIndex + 2] = (float)rand.NextDouble();//size1
                 vertices[vertexIndex + 3] = (float)rand.NextDouble();//size2
                 vertices[vertexIndex + 4] = (float)rand.NextDouble();//size3
-                vertices[vertexIndex + 5] = (float)rand.NextDouble() * overlap / count / 10f;//opacity1
-                vertices[vertexIndex + 6] = (float)rand.NextDouble() * overlap / count / 10f;//opacity2
-                vertices[vertexIndex + 7] = (float)rand.NextDouble() * overlap / count / 10f;//opacity3
+                vertices[vertexIndex + 5] = (float)rand.NextDouble() * overlap / count;//opacity1
+                vertices[vertexIndex + 6] = (float)rand.NextDouble() * overlap / count;//opacity2
+                vertices[vertexIndex + 7] = (float)rand.NextDouble() * overlap / count;//opacity3
             }
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
         }
@@ -101,8 +101,10 @@ namespace FuelMap
             }
 
         }
-        int count = 10000;
-        float overlap = 60;
+        static int count = 10000;
+        static float overlap = 6;
+        static float threshold = .1f;
+        static float RefuelRate = .01f;
         protected override void OnLoad()
         {
             var verts = vertices.ToList();
@@ -116,9 +118,9 @@ namespace FuelMap
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble() * overlap / count / 10f);
-                verts.Add((float)rand.NextDouble() * overlap / count / 10f);
-                verts.Add((float)rand.NextDouble() * overlap / count / 10f);
+                verts.Add((float)rand.NextDouble() * overlap / count);
+                verts.Add((float)rand.NextDouble() * overlap / count);
+                verts.Add((float)rand.NextDouble() * overlap / count);
             }
             vertices = verts.ToArray();
 
@@ -221,11 +223,6 @@ namespace FuelMap
             return requestBuffer;
         }
 
-        private void InitializeOpacityMap()
-        {
-
-        }
-
         private void CheckGPUErrors(string errorPrefix)
         {
             ErrorCode err;
@@ -246,6 +243,13 @@ namespace FuelMap
             
             GL.Clear(ClearBufferMask.ColorBufferBit);
             RequestFuel();
+
+            if(FuelZeroingShader.Average < .5f - threshold)
+                RefuelRate += .001f;
+            else if (FuelZeroingShader.Average > .5f + threshold)
+                RefuelRate -= .001f;
+            RequestFuelShader.AddValue = RefuelRate;
+
             Context.SwapBuffers();
             base.OnRenderFrame(e);
         }
@@ -254,7 +258,7 @@ namespace FuelMap
         public RectangleF FuelUsedBounds = new RectangleF(.51f, .26f, .48f, .48f);
 
         public float[] PoolMinMax = new float[2] { 0, 1 };
-        public float[] FuelRequestMinMax = new float[2] { 0, .1f };
+        public float[] FuelRequestMinMax = new float[2] { 0, 150*overlap / count };
         public float[] FuelUsedMinMax = new float[2] { 0, 1 };
         public void RequestFuel()
         {
@@ -278,7 +282,7 @@ namespace FuelMap
             CheckGPUErrors("Error rendering to subtract from fuel pool float buffer:");
 
             //process fuel pool zeroing and produce used fuel buffer.
-            FuelUsedShader.Use();
+            FuelUsedShader.Use(RefuelRate);
             CheckGPUErrors("Error using min shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelUsedBuffer);
             GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -293,6 +297,8 @@ namespace FuelMap
             CheckGPUErrors("Error binding to opacity fbo:");
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
             CheckGPUErrors("Error rendering to min fuel pool float buffer:");
+
+            FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
 
             //draw float buffer from texture to back buffer. one call for each one we'd like to display
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);

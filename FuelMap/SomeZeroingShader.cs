@@ -17,6 +17,7 @@ namespace FuelMap
 
         public int FromTextureLocation { get; private set; }
         public int FromTexture { get; private set; }
+        public float Average { get; private set; }
         public SomeZeroingShader(string vertexPath, string fragmentPath, int fromTexture)
         {
             _timer = new Stopwatch();
@@ -98,7 +99,15 @@ namespace FuelMap
 
             CheckGPUErrors("Error setting texture:");
         }
+        public void CheckAverage(float w, float h)
+        {
+            GL.GenerateTextureMipmap(FromTextureLocation);
+            float fPixel = 0f;
+            GL.BindTexture(TextureTarget.Texture2D, FromTexture);
+            GL.GetTexImage<float>(TextureTarget.Texture2D, (int)(1 + Math.Floor(Math.Log2(Math.Max(w, h)))), PixelFormat.Red, PixelType.Float, ref fPixel);
+            Average = fPixel;//single channel texture
 
+        }
         private void CheckGPUErrors(string errorPrefix)
         {
             ErrorCode err;

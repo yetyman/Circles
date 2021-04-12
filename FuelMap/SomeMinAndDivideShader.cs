@@ -89,7 +89,7 @@ namespace FuelMap
         {
             return GL.GetAttribLocation(Handle, attribName);
         }
-        public void Use()
+        public void Use(float constantScale)
         {
             GL.UseProgram(Handle);
             GL.BlendFunc(BlendingFactor.Zero, BlendingFactor.One);

@@ -9,3 +9,8 @@ FunShapes/bin/Debug/netcoreapp3.1/FunShapes.deps.json
 FunShapes/obj/Debug/netcoreapp3.1/FunShapes.csproj.FileListAbsolute.txt
 FunShapes/obj/FunShapes.csproj.nuget.dgspec.json
 FunShapes/obj/project.assets.json
+/RadiationMap/obj/Debug/netcoreapp3.1/.NETCoreApp,Version=v3.1.AssemblyAttributes.cs
+/RadiationMap/obj/Debug/netcoreapp3.1/RadiationMap.AssemblyInfo.cs
+/RadiationMap/obj/Debug/netcoreapp3.1/RadiationMap.csproj.FileListAbsolute.txt
+obj
+bin

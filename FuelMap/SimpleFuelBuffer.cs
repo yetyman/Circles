@@ -298,7 +298,7 @@ namespace FuelMap
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
             CheckGPUErrors("Error rendering to min fuel pool float buffer:");
 
-            FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
+            FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y, FuelPoolTexture);
 
             //draw float buffer from texture to back buffer. one call for each one we'd like to display
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);

@@ -99,20 +99,20 @@ namespace FuelMap
 
             CheckGPUErrors("Error setting texture:");
         }
-        public void CheckAverage(float w, float h)
+        public void CheckAverage(float w, float h, int texture)
         {
-            GL.GenerateTextureMipmap(FromTextureLocation);
+            GL.GenerateTextureMipmap(texture);
             CheckGPUErrors("Error generating mipmap:");
 
-            float[] fPixel = new float[4];
+            float fPixel = new float();
 
             GL.BindTexture(TextureTarget.Texture2D, FromTexture);
             CheckGPUErrors("Error binding texture:");
 
-            GL.GetTexImage<float>(TextureTarget.Texture2D, (int)(1 + Math.Floor(Math.Log2(Math.Max(w, h)))), PixelFormat.Red, PixelType.Float, fPixel);
+            GL.GetTexImage<float>(TextureTarget.Texture2D, (int)(1 + Math.Floor(Math.Log2(Math.Max(w, h)))), PixelFormat.Red, PixelType.Float, ref fPixel);
             CheckGPUErrors("Error calculating average:");
 
-            Average = fPixel[0];//single channel texture
+            Average = fPixel;//single channel texture
         }
         private void CheckGPUErrors(string errorPrefix)
         {

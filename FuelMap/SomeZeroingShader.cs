@@ -109,7 +109,8 @@ namespace FuelMap
             GL.BindTexture(TextureTarget.Texture2D, FromTexture);
             CheckGPUErrors("Error binding texture:");
 
-            GL.GetTexImage<float>(TextureTarget.Texture2D, (int)(1 + Math.Floor(Math.Log2(Math.Max(w, h)))), PixelFormat.Red, PixelType.Float, ref fPixel);
+            var level = (int)(Math.Floor(Math.Log2(Math.Max(w, h))));
+            GL.GetTexImage<float>(TextureTarget.Texture2D, level, PixelFormat.Red, PixelType.Float, ref fPixel);
             CheckGPUErrors("Error calculating average:");
 
             Average = fPixel;//single channel texture

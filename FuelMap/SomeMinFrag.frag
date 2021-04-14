@@ -14,5 +14,5 @@ void main()
 	{
 		clr = fuel+req;//will be less than req.
 	}
-	FragColor = clr;
+	FragColor = clr/req;
 }

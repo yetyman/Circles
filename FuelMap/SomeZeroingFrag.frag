@@ -11,7 +11,7 @@ void main()
 	{
 		fuel = vec4(0,0,0,1);
 	}
-	if(fuel.r>1 || fuel.g>1 || fuel.b>1)
+	else if(fuel.r>1 || fuel.g>1 || fuel.b>1)
 	{
 		fuel = vec4(1,1,1,1);
 	}

@@ -71,8 +71,8 @@ namespace FuelMap
             {
                 //update all kinds of values
                 int vertexIndex = rand.Next(0, (vertices.Length - 12) / 8) * 8 + 12;
-                vertices[vertexIndex + 0] = (float)rand.NextDouble();//position1
-                vertices[vertexIndex + 1] = (float)rand.NextDouble();//position2
+                vertices[vertexIndex + 0] = (float)rand.NextDouble()*2-.5f;//position1
+                vertices[vertexIndex + 1] = (float)rand.NextDouble() * 2 - .5f;//position2
                 vertices[vertexIndex + 2] = (float)rand.NextDouble();//size1
                 vertices[vertexIndex + 3] = (float)rand.NextDouble();//size2
                 vertices[vertexIndex + 4] = (float)rand.NextDouble();//size3
@@ -103,7 +103,7 @@ namespace FuelMap
         }
         static int count = 10000;
         static float overlap = 6;
-        static float threshold = .1f;
+        static float threshold = .2f;
         static float RefuelRate = .01f;
         protected override void OnLoad()
         {
@@ -113,8 +113,8 @@ namespace FuelMap
             
             for (int i = 0; i < count; i++)
             {
-                verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble());
+                verts.Add((float)rand.NextDouble() * 2 - .5f);
+                verts.Add((float)rand.NextDouble() * 2 - .5f);
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
                 verts.Add((float)rand.NextDouble());
@@ -133,7 +133,7 @@ namespace FuelMap
             FuelPoolBuffer = InitializeFrameBuffer();
             FuelPoolTexture = InitializeFrameBufferTexture();
 
-            GL.ClearColor(1f, 1f, 1f, 1f);
+            GL.ClearColor(1f, 0f, 0f, 1f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
             CheckFramebufferStatus(FuelPoolBuffer);
             GL.ClearColor(0f, 0f, 0f, 0.0f);
@@ -244,10 +244,9 @@ namespace FuelMap
             GL.Clear(ClearBufferMask.ColorBufferBit);
             RequestFuel();
 
-            if(FuelZeroingShader.Average < .5f - threshold)
-                RefuelRate += .001f;
-            else if (FuelZeroingShader.Average > .5f + threshold)
-                RefuelRate -= .001f;
+            //if(Math.Abs(FuelZeroingShader.Average - .5f) > threshold)
+            RefuelRate = (.5f - FuelZeroingShader.Average)/1.1f;
+
             RequestFuelShader.AddValue = RefuelRate;
 
             Context.SwapBuffers();
@@ -258,10 +257,14 @@ namespace FuelMap
         public RectangleF FuelUsedBounds = new RectangleF(.51f, .26f, .48f, .48f);
 
         public float[] PoolMinMax = new float[2] { 0, 1 };
-        public float[] FuelRequestMinMax = new float[2] { 0, 150*overlap / count };
+        public float[] FuelRequestMinMax = new float[2] { 0, overlap*overlap/count*6};
         public float[] FuelUsedMinMax = new float[2] { 0, 1 };
         public void RequestFuel()
         {
+
+            FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y, FuelPoolTexture);
+            //PoolMinMax[1] = FuelZeroingShader.Average;
+
             //create request pool buffer
             //-already handled by updateLocations loop
             //-draw opacities to request pool buffer
@@ -298,7 +301,6 @@ namespace FuelMap
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
             CheckGPUErrors("Error rendering to min fuel pool float buffer:");
 
-            FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y, FuelPoolTexture);
 
             //draw float buffer from texture to back buffer. one call for each one we'd like to display
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);

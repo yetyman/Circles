@@ -92,7 +92,7 @@ namespace FuelMap
         public void Use(float constantScale)
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactor.Zero, BlendingFactor.One);
+            GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
             GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);

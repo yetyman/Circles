@@ -27,40 +27,14 @@ namespace FuelMap
         SomeMinAndDivideShader FuelUsedShader;//take request and pool, generate used amount from request and pool.
         SomeZeroingShader FuelZeroingShader;//take pool, set negatives to zero
         MultiViewShader texShader;
-        float[] vertices = {
-            -.5f,  .5f, 0.0f,     //Top-left vertex
-            -.5f, -.5f, 0.0f,   //Bottom-left vertex
-             .5f,  .5f, 0.0f,  //Top-right vertex
-             .5f, -.5f, 0.0f,    //Bottom-right vertex
-             
-             // .45f, .75f,//position
-             //.4f, .5f, .12f,//sizes
-             //.4f, .5f, .12f,//opacities
-
-             // .6f, .8f,//position
-             //.2f, .5f, .2f,//sizes
-             //.4f, 1f, .12f,//opacities
-
-             // .5f, .5f,//position
-             //.4f, 1f, .12f,//sizes
-             //.4f, .3f, .12f,//opacities
-
-             // .9f, .15f,//position
-             //.2f, .7f, .2f,//sizes
-             //.4f, .2f, .12f,//opacities
-
-             // .7f, .8f,//position
-             //.2f, .5f, .2f,//sizes
-             //.4f, .8f, .12f,//opacities
-
-        };
-
+        ManipulatePoints points = new ManipulatePoints();
         uint[] indices = {  // note that we start from 0!
             0, 1, 3,   // first triangle
             0, 2, 3    // second triangle
         };
         public SimpleFuelBuffer(int width, int height, string title) : base(width, height, title)
         {
+            points.Allocate(count);
         }
         Random rand = new Random();
         
@@ -70,17 +44,21 @@ namespace FuelMap
             for (int i = 0; i < 1000; i++)
             {
                 //update all kinds of values
-                int vertexIndex = rand.Next(0, (vertices.Length - 12) / 8) * 8 + 12;
-                vertices[vertexIndex + 0] = (float)rand.NextDouble()*2-.5f;//position1
-                vertices[vertexIndex + 1] = (float)rand.NextDouble() * 2 - .5f;//position2
-                vertices[vertexIndex + 2] = (float)rand.NextDouble();//size1
-                vertices[vertexIndex + 3] = (float)rand.NextDouble();//size2
-                vertices[vertexIndex + 4] = (float)rand.NextDouble();//size3
-                vertices[vertexIndex + 5] = (float)rand.NextDouble() * overlap / count;//opacity1
-                vertices[vertexIndex + 6] = (float)rand.NextDouble() * overlap / count;//opacity2
-                vertices[vertexIndex + 7] = (float)rand.NextDouble() * overlap / count;//opacity3
+                int vertexIndex = rand.Next(0, points.pointCount) * 8;
+                points.UpdatePoint(vertexIndex,
+                    (float)rand.NextDouble() * 2 - .5f,//position1
+                    (float)rand.NextDouble() * 2 - .5f,//position2
+                    (float)rand.NextDouble(),//size1
+                    (float)rand.NextDouble(),//size2
+                    (float)rand.NextDouble(),//size3
+                    (float)rand.NextDouble() * overlap / count,//opacity1
+                    (float)rand.NextDouble() * overlap / count,//opacity2
+                    (float)rand.NextDouble() * overlap / count//opacity3
+                );
             }
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+
+            //GL.BufferSubData //eventually.
+            GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
         }
         private void ProcessingLoopFake()
         {
@@ -107,24 +85,25 @@ namespace FuelMap
         static float RefuelRate = .01f;
         protected override void OnLoad()
         {
-            var verts = vertices.ToList();
             var rand = new Random();
             //for(int i = 0; i<140000; i++)
             
             for (int i = 0; i < count; i++)
             {
-                verts.Add((float)rand.NextDouble() * 2 - .5f);
-                verts.Add((float)rand.NextDouble() * 2 - .5f);
-                verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble());
-                verts.Add((float)rand.NextDouble() * overlap / count);
-                verts.Add((float)rand.NextDouble() * overlap / count);
-                verts.Add((float)rand.NextDouble() * overlap / count);
-            }
-            vertices = verts.ToArray();
+                points.AddPoint(
+                    (float)rand.NextDouble() * 2 - .5f,
+                    (float)rand.NextDouble() * 2 - .5f,
+                    (float)rand.NextDouble(),
+                    (float)rand.NextDouble(),
+                    (float)rand.NextDouble(),
+                    (float)rand.NextDouble() * overlap / count,
+                    (float)rand.NextDouble() * overlap / count,
+                    (float)rand.NextDouble() * overlap / count
+                );
 
-            GL.ClearColor(0f, 0f, 0f, 0.0f);
+        }
+
+        GL.ClearColor(0f, 0f, 0f, 0.0f);
             
             FuelUsedBuffer = InitializeFrameBuffer();
             FuelUsedTexture = InitializeFrameBufferTexture();
@@ -160,7 +139,7 @@ namespace FuelMap
 
             // 2. copy our vertices array in a buffer for OpenGL to use
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
 
             // 3. then set our vertex attributes pointers
             //which attribute are we settings, how many is it, what is each it?, should it be normalized?, what's the total size?,
@@ -273,7 +252,7 @@ namespace FuelMap
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelRequestBuffer);
             GL.Clear(ClearBufferMask.ColorBufferBit);
             CheckGPUErrors("Error binding to opacity fbo:");
-            GL.DrawElementsInstanced(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt ,(IntPtr)0,(vertices.Length - 12) / 8);
+            GL.DrawElementsInstanced(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt ,(IntPtr)0,points.pointCount);
             CheckGPUErrors("Error rendering to activation request float buffer:");
 
             //process fuel pool regen and request subtraction

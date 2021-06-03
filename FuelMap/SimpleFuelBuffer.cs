@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace FuelMap
 {
@@ -37,26 +38,48 @@ namespace FuelMap
             points.Allocate(count);
         }
         Random rand = new Random();
-        
+
+        private int threadNo = 0;
         private void UpdateLocations()
         {
-            
-            for (int i = 0; i < 1000; i++)
+            Console.WriteLine("frame");
+            var loop = Parallel.For(0, 4, (index) =>
             {
-                //update all kinds of values
-                int vertexIndex = rand.Next(0, points.pointCount) * 8;
-                points.UpdatePoint(vertexIndex,
-                    (float)rand.NextDouble() * 2 - .5f,//position1
-                    (float)rand.NextDouble() * 2 - .5f,//position2
-                    (float)rand.NextDouble(),//size1
-                    (float)rand.NextDouble(),//size2
-                    (float)rand.NextDouble(),//size3
-                    (float)rand.NextDouble() * overlap / count,//opacity1
-                    (float)rand.NextDouble() * overlap / count,//opacity2
-                    (float)rand.NextDouble() * overlap / count//opacity3
-                );
-            }
+                if(string.IsNullOrWhiteSpace(Thread.CurrentThread.Name))
+                    Thread.CurrentThread.Name = "Thread " + threadNo++;
+                for (int i = 0; i < 250; i++)
+                {
+                    //update all kinds of values
+                    
+                    int vertexIndex = rand.Next(0, points.pointCount) * 8;
+                    points.RemovePoint(vertexIndex);
+                    
+                    vertexIndex = rand.Next(0, points.pointCount) * 8;
+                    points.UpdatePoint(vertexIndex,
+                        (float)rand.NextDouble() * 2 - .5f,//position1
+                        (float)rand.NextDouble() * 2 - .5f,//position2
+                        (float)rand.NextDouble(),//size1
+                        (float)rand.NextDouble(),//size2
+                        (float)rand.NextDouble(),//size3
+                        (float)rand.NextDouble() * overlap / count,//opacity1
+                        (float)rand.NextDouble() * overlap / count,//opacity2                         
+                        (float)rand.NextDouble() * overlap / count//opacity3
+                    );
 
+                    vertexIndex = rand.Next(0, points.pointCount) * 8;
+                    points.AddPoint(
+                        (float)rand.NextDouble() * 2 - .5f,//position1
+                        (float)rand.NextDouble() * 2 - .5f,//position2
+                        (float)rand.NextDouble(),//size1
+                        (float)rand.NextDouble(),//size2
+                        (float)rand.NextDouble(),//size3
+                        (float)rand.NextDouble() * overlap / count,//opacity1
+                        (float)rand.NextDouble() * overlap / count,//opacity2                         
+                        (float)rand.NextDouble() * overlap / count//opacity3);
+                    );
+                }
+            });
+            while (!loop.IsCompleted) ;
             //GL.BufferSubData //eventually.
             GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
         }

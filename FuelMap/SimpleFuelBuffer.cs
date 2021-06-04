@@ -55,7 +55,7 @@ namespace FuelMap
                 {
                     //update all kinds of values
                     
-                    int vertexIndex = rand.Next(0, points.pointCount) * 8;
+                    int vertexIndex = rand.Next(2, points.pointCount) * 8;
                     points.RemovePoint(vertexIndex);
                     
                     vertexIndex = rand.Next(0, points.pointCount) * 8;

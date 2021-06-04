@@ -37,50 +37,69 @@ namespace FuelMap
         {
             points.Allocate(count);
         }
-        Random rand = new Random();
 
         private int threadNo = 0;
         object lockObj = new object();
+        Dictionary<Random, bool> RandPool = new Dictionary<Random, bool>();
         private void UpdateLocations()
         {
             //Console.WriteLine("frame");
             var loop = Parallel.For(0, 4, (index) =>
             {
-                if (string.IsNullOrWhiteSpace(Thread.CurrentThread.Name))
+                try
                 {
-                    lock(lockObj)
-                        Thread.CurrentThread.Name = "Thread " + threadNo++;
-                }
-                for (int i = 0; i < 250; i++)
-                {
-                    //update all kinds of values
-                    
-                    int vertexIndex = rand.Next(2, points.pointCount) * 8;
-                    points.RemovePoint(vertexIndex);
-                    
-                    vertexIndex = rand.Next(0, points.pointCount) * 8;
-                    points.UpdatePoint(vertexIndex,
-                        (float)rand.NextDouble() * 2 - .5f,//position1
-                        (float)rand.NextDouble() * 2 - .5f,//position2
-                        (float)rand.NextDouble(),//size1
-                        (float)rand.NextDouble(),//size2
-                        (float)rand.NextDouble(),//size3
-                        (float)rand.NextDouble() * overlap / count,//opacity1
-                        (float)rand.NextDouble() * overlap / count,//opacity2                         
-                        (float)rand.NextDouble() * overlap / count//opacity3
-                    );
+                    Random rand = null;
+                    lock (RandPool)
+                    {
+                        rand = RandPool.FirstOrDefault(x => !x.Value).Key;
+                        if (rand == null) RandPool.Add(rand = new Random(), true);
+                        RandPool[rand] = true;
+                    }
+                    if (string.IsNullOrWhiteSpace(Thread.CurrentThread.Name))
+                    {
+                        lock (lockObj)
+                            Thread.CurrentThread.Name = "Thread " + threadNo++;
+                    }
+                    for (int i = 0; i < 250; i++)
+                    {
+                        //update all kinds of values
 
-                    vertexIndex = rand.Next(0, points.pointCount) * 8;
-                    points.AddPoint(
-                        (float)rand.NextDouble() * 2 - .5f,//position1
-                        (float)rand.NextDouble() * 2 - .5f,//position2
-                        (float)rand.NextDouble(),//size1
-                        (float)rand.NextDouble(),//size2
-                        (float)rand.NextDouble(),//size3
-                        (float)rand.NextDouble() * overlap / count,//opacity1
-                        (float)rand.NextDouble() * overlap / count,//opacity2                         
-                        (float)rand.NextDouble() * overlap / count//opacity3);
-                    );
+                        int vertexIndex = rand.Next(2, points.pointCount) * 8;
+                        points.RemovePoint(vertexIndex);
+
+                        vertexIndex = rand.Next(0, points.pointCount) * 8;
+                        points.UpdatePoint(vertexIndex,
+                            (float)rand.NextDouble() * 2 - .5f,//position1
+                            (float)rand.NextDouble() * 2 - .5f,//position2
+                            (float)rand.NextDouble(),//size1
+                            (float)rand.NextDouble(),//size2
+                            (float)rand.NextDouble(),//size3
+                            (float)rand.NextDouble() * overlap / count,//opacity1
+                            (float)rand.NextDouble() * overlap / count,//opacity2                         
+                            (float)rand.NextDouble() * overlap / count//opacity3
+                        );
+
+                        vertexIndex = rand.Next(0, points.pointCount) * 8;
+                        points.AddPoint(
+                            (float)rand.NextDouble() * 2 - .5f,//position1
+                            (float)rand.NextDouble() * 2 - .5f,//position2
+                            (float)rand.NextDouble(),//size1
+                            (float)rand.NextDouble(),//size2
+                            (float)rand.NextDouble(),//size3
+                            (float)rand.NextDouble() * overlap / count,//opacity1
+                            (float)rand.NextDouble() * overlap / count,//opacity2                         
+                            (float)rand.NextDouble() * overlap / count//opacity3);
+                        );
+                    }
+
+                    lock (RandPool)
+                    {
+                        RandPool[rand] = false;
+                    }
+                }
+                catch(Exception ex)
+                {
+                    ;
                 }
             });
             while (!loop.IsCompleted) ;

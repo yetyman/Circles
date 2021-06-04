@@ -57,7 +57,7 @@ namespace FuelMap
                 for (int i = 0; i < cornerSpace; i++)
                     points[i] = circleCorners[i];
 
-                firstOpenSpace = 0;
+                firstOpenSpace = cornerSpace;
             }
         }
 
@@ -240,6 +240,18 @@ namespace FuelMap
         }
 
 
+        HashSet<int> indexes = new HashSet<int>();
+        void WaitforDuplicates(int index)
+        {
+            while (indexes.Contains(index)) ;
+            lock(indexes)
+                indexes.Add(index);
+        }
+        void RemoveFromDuplicates(int index)
+        {
+            lock(indexes)
+                indexes.Remove(index);
+        }
         /// <summary>
         /// 
         /// </summary>
@@ -261,40 +273,26 @@ namespace FuelMap
             if (!o2.HasValue) o2 = DefaultFuelIntensity;
             if (!o3.HasValue) o3 = DefaultNodeCreationIntensity;
 
-            PointIndex pointLock = null;
-            try
+            int lp;
+            lock (firstOpenLock)
             {
-                lock (firstOpenLock)
-                {
-                    var lp = firstOpenSpace;
-                    firstOpenSpace += 8;
-                    pointLock = PointLocks.GetOne(lp);
-                    Monitor.Enter(pointLock.secondaryLock);
-                    //Console.WriteLine(Thread.CurrentThread.Name + " Adding point index " + pointLock.pointIndex);
-                }
-                if (pointLock.pointIndex != -1)
-                {
-                    points[pointLock.pointIndex + 0] = x;//p sition1
-                    points[pointLock.pointIndex + 1] = y;//position2
-                    points[pointLock.pointIndex + 2] = r1.Value;//size1
-                    points[pointLock.pointIndex + 3] = r2.Value;//size2
-                    points[pointLock.pointIndex + 4] = r3.Value;//size3
-                    points[pointLock.pointIndex + 5] = o1.Value;//opacity1
-                    points[pointLock.pointIndex + 6] = o2.Value;//opacity2
-                    points[pointLock.pointIndex + 7] = o3.Value;//opacity3
-                }
+                lp = firstOpenSpace;
+                firstOpenSpace += 8;
+                //Console.WriteLine(Thread.CurrentThread.Name + " Adding point index " + pointLock.pointIndex);
             }
-            catch (Exception ex)
-            {
-                //Console.WriteLine("AddPoint has failed");
-                //Console.WriteLine(ex);
-            }
-            finally
-            {
-                if (pointLock != null)
-                    Monitor.Exit(pointLock.secondaryLock);
-                PointLocks.ReleaseOne(pointLock);
-            }
+
+            WaitforDuplicates(lp);
+
+            points[lp + 0] = x;//p sition1
+            points[lp + 1] = y;//position2
+            points[lp + 2] = r1.Value;//size1
+            points[lp + 3] = r2.Value;//size2
+            points[lp + 4] = r3.Value;//size3
+            points[lp + 5] = o1.Value;//opacity1
+            points[lp + 6] = o2.Value;//opacity2
+            points[lp + 7] = o3.Value;//opacity3
+
+            RemoveFromDuplicates(lp);
         }
 
         /// <summary>
@@ -303,169 +301,86 @@ namespace FuelMap
         /// <param name="index"></param>
         public void RemovePoint(int index)
         {
-            //Console.WriteLine(Thread.CurrentThread.Name + " Removing point index " + index);
-            PointIndex pointLock = null;
-            PointIndex lp = null;
-            //clear this point
-            try
+            index += cornerSpace;
+            
+            WaitforDuplicates(index);
+
+            points[index + 0] = 0;//p sition1
+            points[index + 1] = 0;//position2
+            points[index + 2] = 0;//size1
+            points[index + 3] = 0;//size2
+            points[index + 4] = 0;//size3
+            points[index + 5] = 0;//opacity1
+            points[index + 6] = 0;//opacity2
+            points[index + 7] = 0;//opacity3
+
+            //consolidate into continuous memory
+
+            lock (firstOpenLock)//lock end pointer
             {
-                pointLock = PointLocks.GetOne(index);
-
-                Monitor.Enter(pointLock.secondaryLock);
-                if (pointLock.pointIndex != -1)
+                int lp = firstOpenSpace - 8;
+                if (lp == index + cornerSpace)
                 {
-                    points[pointLock.pointIndex + 0] = 0;//p sition1
-                    points[pointLock.pointIndex + 1] = 0;//position2
-                    points[pointLock.pointIndex + 2] = 0;//size1
-                    points[pointLock.pointIndex + 3] = 0;//size2
-                    points[pointLock.pointIndex + 4] = 0;//size3
-                    points[pointLock.pointIndex + 5] = 0;//opacity1
-                    points[pointLock.pointIndex + 6] = 0;//opacity2
-                    points[pointLock.pointIndex + 7] = 0;//opacity3
+                    //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
 
+                    //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
+                    //fringe case but basically never
+                    firstOpenSpace -= 8;
+                    return;
                 }
                 else
                 {
-                    throw new Exception("wut");
+                    points[index + 0] = points[lp + 0];//p sition1
+                    points[index + 1] = points[lp + 1];//position2
+                    points[index + 2] = points[lp + 2];//size1
+                    points[index + 3] = points[lp + 3];//size2
+                    points[index + 4] = points[lp + 4];//size3
+                    points[index + 5] = points[lp + 5];//opacity1
+                    points[index + 6] = points[lp + 6];//opacity2
+                    points[index + 7] = points[lp + 7];//opacity3
+                    //the last point has been moved back to somewhere else in memory
+                                                       //Console.WriteLine(Thread.CurrentThread.Name + " point index " + lp.pointIndex + " moved to point index " + pointLock.pointIndex);
+                    firstOpenSpace -= 8;
                 }
-            }
-            catch (Exception ex)
-            {
-                //Console.WriteLine("RemovePoint1 has failed for index " + index);
-                //Console.WriteLine(ex);
-            }
-            finally
-            {
-                if (pointLock != null)
-                    Monitor.Exit(pointLock.secondaryLock);
-                PointLocks.ReleaseOne(pointLock);
+                //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
             }
 
-            //consolidate into continuous memory
-            try
-            {
-                lock (PointLocks)
-                {
-                    pointLock = PointLocks.GetOne(index);
-                    Monitor.Enter(pointLock.secondaryLock);//lock empty space
-                    lock (firstOpenLock)//lock end pointer
-                    {
-                        try
-                        {
-                            lp = PointLocks.GetOne(firstOpenSpace - 8);
-                            Monitor.Enter(lp.secondaryLock);//lock last point
-                            if (lp.pointIndex == index + cornerSpace)
-                            {
-                                //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
-
-                                //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
-                                //fringe case but basically never
-                                firstOpenSpace -= 8;
-                                return;
-                            }
-                            else
-                            {
-                                points[pointLock.pointIndex + 0] = points[lp.pointIndex + 0];//p sition1
-                                points[pointLock.pointIndex + 1] = points[lp.pointIndex + 1];//position2
-                                points[pointLock.pointIndex + 2] = points[lp.pointIndex + 2];//size1
-                                points[pointLock.pointIndex + 3] = points[lp.pointIndex + 3];//size2
-                                points[pointLock.pointIndex + 4] = points[lp.pointIndex + 4];//size3
-                                points[pointLock.pointIndex + 5] = points[lp.pointIndex + 5];//opacity1
-                                points[pointLock.pointIndex + 6] = points[lp.pointIndex + 6];//opacity2
-                                points[pointLock.pointIndex + 7] = points[lp.pointIndex + 7];//opacity3
-                                                                                             //the last point has been moved back to somewhere else in memory
-                                                                                             //Console.WriteLine(Thread.CurrentThread.Name + " point index " + lp.pointIndex + " moved to point index " + pointLock.pointIndex);
-                                firstOpenSpace -= 8;
-                            }
-                            //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
-                        }
-                        catch (Exception ex)
-                        {
-                            //Console.WriteLine("RemovePoint3 has failed for index " + index);
-                            //Console.WriteLine(ex);
-                        }
-                        finally
-                        {
-                            if (lp != null)
-                                Monitor.Exit(lp.secondaryLock);
-                            PointLocks.ReleaseOne(lp);
-                        }
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-                //Console.WriteLine("RemovePoint2 has failed for index " + index);
-                //Console.WriteLine(ex);
-            }
-            finally
-            {
-                if (pointLock != null)
-                    Monitor.Exit(pointLock.secondaryLock);
-                PointLocks.ReleaseOne(pointLock);
-            }
+            RemoveFromDuplicates(index);
         }
 
         public void UpdatePoint(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
-            PointIndex pointLock = null;
-            try
-            {
-                pointLock = PointLocks.GetOne(index);
-                Monitor.Enter(pointLock.secondaryLock);
-                //Console.WriteLine(Thread.CurrentThread.Name + " Updating point index " + pointLock.pointIndex);
+            index += cornerSpace;
+            
+            WaitforDuplicates(index);
 
-                if (x.HasValue) points[pointLock.pointIndex + 0] = x.Value;
-                if (y.HasValue) points[pointLock.pointIndex + 1] = y.Value;
-                if (r1.HasValue) points[pointLock.pointIndex + 2] = r1.Value;
-                if (r2.HasValue) points[pointLock.pointIndex + 3] = r2.Value;
-                if (r3.HasValue) points[pointLock.pointIndex + 4] = r3.Value;
-                if (o1.HasValue) points[pointLock.pointIndex + 5] = o1.Value;
-                if (o2.HasValue) points[pointLock.pointIndex + 6] = o2.Value;
-                if (o3.HasValue) points[pointLock.pointIndex + 7] = o3.Value;
-            }
-            catch (Exception ex)
-            {
-                //Console.WriteLine("UpdatePoint has failed for index " + index);
-                //Console.WriteLine(ex);
-            }
-            finally
-            {
-                if (pointLock != null)
-                    Monitor.Exit(pointLock.secondaryLock);
-                PointLocks.ReleaseOne(pointLock);
-            }
+            if (x.HasValue) points[index + 0] = x.Value;
+            if (y.HasValue) points[index + 1] = y.Value;
+            if (r1.HasValue) points[index + 2] = r1.Value;
+            if (r2.HasValue) points[index + 3] = r2.Value;
+            if (r3.HasValue) points[index + 4] = r3.Value;
+            if (o1.HasValue) points[index + 5] = o1.Value;
+            if (o2.HasValue) points[index + 6] = o2.Value;
+            if (o3.HasValue) points[index + 7] = o3.Value;
+
+            RemoveFromDuplicates(index);
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
-            PointIndex pointLock = null;
-            try
-            {
-                pointLock = PointLocks.GetOne(index);
-                Monitor.Enter(pointLock.secondaryLock);
-                //Console.WriteLine(Thread.CurrentThread.Name + " Updating point index " + pointLock.pointIndex);
+            index += cornerSpace;
+            
+            WaitforDuplicates(index);
 
-                if (x.HasValue) points[pointLock.pointIndex + 0] += x.Value;
-                if (y.HasValue) points[pointLock.pointIndex + 1] += y.Value;
-                if (r1.HasValue) points[pointLock.pointIndex + 2] += r1.Value;
-                if (r2.HasValue) points[pointLock.pointIndex + 3] += r2.Value;
-                if (r3.HasValue) points[pointLock.pointIndex + 4] += r3.Value;
-                if (o1.HasValue) points[pointLock.pointIndex + 5] += o1.Value;
-                if (o2.HasValue) points[pointLock.pointIndex + 6] += o2.Value;
-                if (o3.HasValue) points[pointLock.pointIndex + 7] += o3.Value;
-            }
-            catch (Exception ex)
-            {
-                //Console.WriteLine("UpdatePointRel has failed for index " + index);
-                //Console.WriteLine(ex);
-            }
-            finally
-            {
-                if (pointLock != null)
-                    Monitor.Exit(pointLock.secondaryLock);
-                PointLocks.ReleaseOne(pointLock);
-            }
+            if (x.HasValue) points[index + 0] += x.Value;
+            if (y.HasValue) points[index + 1] += y.Value;
+            if (r1.HasValue) points[index + 2] += r1.Value;
+            if (r2.HasValue) points[index + 3] += r2.Value;
+            if (r3.HasValue) points[index + 4] += r3.Value;
+            if (o1.HasValue) points[index + 5] += o1.Value;
+            if (o2.HasValue) points[index + 6] += o2.Value;
+            if (o3.HasValue) points[index + 7] += o3.Value;
+            
+            RemoveFromDuplicates(index);
         }
 
     }

@@ -40,13 +40,17 @@ namespace FuelMap
         Random rand = new Random();
 
         private int threadNo = 0;
+        object lockObj = new object();
         private void UpdateLocations()
         {
-            Console.WriteLine("frame");
+            //Console.WriteLine("frame");
             var loop = Parallel.For(0, 4, (index) =>
             {
-                if(string.IsNullOrWhiteSpace(Thread.CurrentThread.Name))
-                    Thread.CurrentThread.Name = "Thread " + threadNo++;
+                if (string.IsNullOrWhiteSpace(Thread.CurrentThread.Name))
+                {
+                    lock(lockObj)
+                        Thread.CurrentThread.Name = "Thread " + threadNo++;
+                }
                 for (int i = 0; i < 250; i++)
                 {
                     //update all kinds of values

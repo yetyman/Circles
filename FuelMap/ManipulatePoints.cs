@@ -68,7 +68,7 @@ namespace FuelMap
         {
             public int pointIndex;
             public int references = 1;
-
+            public object secondaryLock = new object();
             public override int GetHashCode()
             {
                 return pointIndex.GetHashCode();
@@ -80,7 +80,8 @@ namespace FuelMap
         }
 
         public PointLockPool PointLocks = new PointLockPool();
-        public class PointLockPool{
+        public class PointLockPool
+        {
             public Dictionary<int, PointIndex> pointLocks = new Dictionary<int, PointIndex>();
             List<PointIndex> PointPool = new List<PointIndex>();
 
@@ -91,60 +92,94 @@ namespace FuelMap
             public PointIndex GetOne(int index)
             {
                 PointIndex p = null;
-                Console.WriteLine(Thread.CurrentThread.Name + " finding point lock for index " + index);
-                bool b = false;
-                lock (pointLocks)
+                try
                 {
-                    Console.WriteLine(Thread.CurrentThread.Name + " locked pointlocks 1");
-                    if (b = pointLocks.TryGetValue((index + cornerSpace).GetHashCode(), out p))
+                    //Console.WriteLine(Thread.CurrentThread.Name + " finding point lock for index " + index);
+                    bool b = false;
+                    try
                     {
-                        Console.WriteLine(Thread.CurrentThread.Name + " point lock found for index " + index);
-                        p.references++;
-                    }
-                   
-                }
-                Console.WriteLine(Thread.CurrentThread.Name + " released pointlocks 1");
-
-                if(!b)
-                {
-                    Console.WriteLine(Thread.CurrentThread.Name + " point lock not found for index " + index);
-                    lock (PointPool)
-                    {
-                        Console.WriteLine(Thread.CurrentThread.Name + " point pool not locked. obtaining lock");
-                        p = PointPool.FirstOrDefault(x => x.references == 0 && x.pointIndex == -1);
-                        if (p == null)
+                        Monitor.Enter(pointLocks);
+                        //Console.WriteLine(Thread.CurrentThread.Name + " locked pointlocks 1");
+                        b = pointLocks.ContainsKey(index + cornerSpace);
+                        if (b)
                         {
-                            Console.WriteLine(Thread.CurrentThread.Name + " pooled point lock not found. creating new one");
-                            PointPool.Add(p = new PointIndex() { references = 1 });
+                            p = pointLocks[index + cornerSpace];
+                            Monitor.Enter(p);
+                            //Console.WriteLine(Thread.CurrentThread.Name + " point lock found for index " + index);
+                            p.references++;
                         }
-                        else
-                        {
-                            p.references = 1;//set reference count before point pool releases.
-                            Console.WriteLine(Thread.CurrentThread.Name + " pooled point lock found. ");
-                        }
-                    }
-                    Console.WriteLine(Thread.CurrentThread.Name + " point pool lock released");
 
-                    lock (p)
+
+                    }
+                    catch (Exception ex)
                     {
-                        Console.WriteLine(Thread.CurrentThread.Name + " point lock acquired. assigning index "+index);
+                        //Console.WriteLine("GetOne has failed for index "+index);
+                        //Console.WriteLine(ex);
+                    }
+                    finally
+                    {
+                        Monitor.Exit(pointLocks);
+                    }
+                    //Console.WriteLine(Thread.CurrentThread.Name + " released pointlocks 1");
+
+                    if (!b)
+                    {
+                        //Console.WriteLine(Thread.CurrentThread.Name + " point lock not found for index " + index);
+                        lock (PointPool)
+                        {
+                            //Console.WriteLine(Thread.CurrentThread.Name + " point pool not locked. obtaining lock");
+                            p = PointPool.FirstOrDefault(x => x.references == 0 && x.pointIndex == -1);
+                            if (p == null)
+                            {
+                                //Console.WriteLine(Thread.CurrentThread.Name + " pooled point lock not found. creating new one");
+                                PointPool.Add(p = new PointIndex() { references = 1 });
+                                Monitor.Enter(p);
+
+                            }
+                            else
+                            {
+                                Monitor.Enter(p);
+                                p.references = 1;//set reference count before point pool releases.
+                                //Console.WriteLine(Thread.CurrentThread.Name + " pooled point lock found. ");
+                            }
+                        }
+
                         p.pointIndex = index + cornerSpace;
-                        Console.WriteLine(Thread.CurrentThread.Name + " about to lock pointlocks");
-                        lock (pointLocks)
+                        //Console.WriteLine(Thread.CurrentThread.Name + " about to lock pointlocks");
+                        try
                         {
-                            Console.WriteLine(Thread.CurrentThread.Name + " adding new point lock to active list. index "+index);
+                            Monitor.Enter(pointLocks);
+                            //Console.WriteLine(Thread.CurrentThread.Name + " adding new point lock to active list. index " + index);
                             if (pointLocks.ContainsKey(p.pointIndex))
                             {
-                                Console.WriteLine(Thread.CurrentThread.Name + " apparently two threads are using the same point index "+index);
+                                //Console.WriteLine(Thread.CurrentThread.Name + " apparently two threads are using the same point index " + index);
                                 p = pointLocks[p.pointIndex];
                                 p.references++;
-                            }else
+                            }
+                            else
                                 pointLocks.Add(p.pointIndex, p);
                         }
-                        Console.WriteLine(Thread.CurrentThread.Name + " pointlocks lock released");
+                        catch (Exception ex)
+                        {
+                            //Console.WriteLine("GetOne has failed for index "+index);
+                            //Console.WriteLine(ex);
+                        }
+                        finally
+                        {
+                            Monitor.Exit(pointLocks);
+                        }
 
                     }
-
+                }
+                catch (Exception ex)
+                {
+                    //Console.WriteLine("GetOne has failed for index "+index);
+                    //Console.WriteLine(ex);
+                }
+                finally
+                {
+                    if (Monitor.IsEntered(p))
+                        Monitor.Exit(p);
                 }
 
                 if (p == null)
@@ -156,24 +191,50 @@ namespace FuelMap
 
             public void ReleaseOne(PointIndex p)
             {
-
-                Console.WriteLine(Thread.CurrentThread.Name + " pointlocks about to be locked 1 for index " + p.pointIndex);
-                lock (pointLocks)
+                //Console.WriteLine(Thread.CurrentThread.Name + " pointlocks about to be locked 1 for index " + p.pointIndex);
+                try
                 {
-                    Console.WriteLine(Thread.CurrentThread.Name + " pointlocks lock obtained 1. removing index " + p.pointIndex);
-                    Console.WriteLine(Thread.CurrentThread.Name + " point about to be locked 1 for index " + p.pointIndex);
-                    lock (p)
+                    Monitor.Enter(pointLocks);
+                    //Console.WriteLine(Thread.CurrentThread.Name + " pointlocks lock obtained 1. removing index " + p.pointIndex);
+                    //Console.WriteLine(Thread.CurrentThread.Name + " point about to be locked 1 for index " + p.pointIndex);
+                    try
                     {
-                        Console.WriteLine(Thread.CurrentThread.Name + " point lock obtained 1 for index " + p.pointIndex);
+                        Monitor.Enter(p);
+                        //Console.WriteLine(Thread.CurrentThread.Name + " point lock obtained 1 for index " + p.pointIndex);
                         p.references--;
                         if (p.references == 0)
-                        {   pointLocks.Remove(p.pointIndex);
-                                p.pointIndex = -1;
+                        {
+                            if (!pointLocks.Remove(p.pointIndex))
+                            {
+                                throw new Exception("Wut");
+                            }
+                            p.pointIndex = -1;
+                            p.references = 0;
                         }
                     }
-                    Console.WriteLine(Thread.CurrentThread.Name + " point lock released");
+                    catch (Exception ex)
+                    {
+                        //Console.WriteLine("GetOne has failed for index " + p?.pointIndex ?? "null");
+                        //Console.WriteLine(ex);
+                    }
+                    finally
+                    {
+                        if (p != null)
+                            Monitor.Exit(p);
+                    }
+                    //Console.WriteLine(Thread.CurrentThread.Name + " point lock released");
                 }
-                Console.WriteLine(Thread.CurrentThread.Name + " pointlocks lock released 1");
+                catch (Exception ex)
+                {
+                    //Console.WriteLine("GetOne has failed for index "+index);
+                    //Console.WriteLine(ex);
+                }
+                finally
+                {
+                    Monitor.Exit(pointLocks);
+                }
+                //Console.WriteLine(Thread.CurrentThread.Name + " pointlocks lock released 1");
+
 
             }
         }
@@ -200,16 +261,17 @@ namespace FuelMap
             if (!o2.HasValue) o2 = DefaultFuelIntensity;
             if (!o3.HasValue) o3 = DefaultNodeCreationIntensity;
 
-            PointIndex pointLock;
-            lock (firstOpenLock)
+            PointIndex pointLock = null;
+            try
             {
-                var lp = firstOpenSpace;
-                firstOpenSpace += 8;
-                pointLock = PointLocks.GetOne(lp);
-                Console.WriteLine(Thread.CurrentThread.Name + " Adding point index " + pointLock.pointIndex);
-            }
-            lock (pointLock)
-            {
+                lock (firstOpenLock)
+                {
+                    var lp = firstOpenSpace;
+                    firstOpenSpace += 8;
+                    pointLock = PointLocks.GetOne(lp);
+                    Monitor.Enter(pointLock.secondaryLock);
+                    //Console.WriteLine(Thread.CurrentThread.Name + " Adding point index " + pointLock.pointIndex);
+                }
                 if (pointLock.pointIndex != -1)
                 {
                     points[pointLock.pointIndex + 0] = x;//p sition1
@@ -220,8 +282,18 @@ namespace FuelMap
                     points[pointLock.pointIndex + 5] = o1.Value;//opacity1
                     points[pointLock.pointIndex + 6] = o2.Value;//opacity2
                     points[pointLock.pointIndex + 7] = o3.Value;//opacity3
-                    PointLocks.ReleaseOne(pointLock);
                 }
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine("AddPoint has failed");
+                //Console.WriteLine(ex);
+            }
+            finally
+            {
+                if (pointLock != null)
+                    Monitor.Exit(pointLock.secondaryLock);
+                PointLocks.ReleaseOne(pointLock);
             }
         }
 
@@ -231,13 +303,15 @@ namespace FuelMap
         /// <param name="index"></param>
         public void RemovePoint(int index)
         {
-            Console.WriteLine(Thread.CurrentThread.Name + " Removing point index " + index);
-            PointIndex pointLock;
-            PointIndex lp;
+            //Console.WriteLine(Thread.CurrentThread.Name + " Removing point index " + index);
+            PointIndex pointLock = null;
+            PointIndex lp = null;
             //clear this point
-            pointLock = PointLocks.GetOne(index);
-            lock (pointLock)
+            try
             {
+                pointLock = PointLocks.GetOne(index);
+
+                Monitor.Enter(pointLock.secondaryLock);
                 if (pointLock.pointIndex != -1)
                 {
                     points[pointLock.pointIndex + 0] = 0;//p sition1
@@ -249,58 +323,99 @@ namespace FuelMap
                     points[pointLock.pointIndex + 6] = 0;//opacity2
                     points[pointLock.pointIndex + 7] = 0;//opacity3
 
-                    pointLock.references = 1;
-                    PointLocks.ReleaseOne(pointLock);
                 }
+                else
+                {
+                    throw new Exception("wut");
+                }
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine("RemovePoint1 has failed for index " + index);
+                //Console.WriteLine(ex);
+            }
+            finally
+            {
+                if (pointLock != null)
+                    Monitor.Exit(pointLock.secondaryLock);
+                PointLocks.ReleaseOne(pointLock);
             }
 
             //consolidate into continuous memory
-            pointLock = PointLocks.GetOne(index);
-            lock (pointLock)//lock empty space
+            try
             {
-                lock (firstOpenLock)//lock end pointer
+                lock (PointLocks)
                 {
-                    lp = PointLocks.GetOne(firstOpenSpace - 8);
-                    lock (lp)//lock last point
+                    pointLock = PointLocks.GetOne(index);
+                    Monitor.Enter(pointLock.secondaryLock);//lock empty space
+                    lock (firstOpenLock)//lock end pointer
                     {
-                        if (lp.pointIndex == index+cornerSpace)
+                        try
                         {
-                            //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
+                            lp = PointLocks.GetOne(firstOpenSpace - 8);
+                            Monitor.Enter(lp.secondaryLock);//lock last point
+                            if (lp.pointIndex == index + cornerSpace)
+                            {
+                                //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
 
-                            //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
-                            //fringe case but basically never
-                            firstOpenSpace -= 8;
-                            return;
+                                //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
+                                //fringe case but basically never
+                                firstOpenSpace -= 8;
+                                return;
+                            }
+                            else
+                            {
+                                points[pointLock.pointIndex + 0] = points[lp.pointIndex + 0];//p sition1
+                                points[pointLock.pointIndex + 1] = points[lp.pointIndex + 1];//position2
+                                points[pointLock.pointIndex + 2] = points[lp.pointIndex + 2];//size1
+                                points[pointLock.pointIndex + 3] = points[lp.pointIndex + 3];//size2
+                                points[pointLock.pointIndex + 4] = points[lp.pointIndex + 4];//size3
+                                points[pointLock.pointIndex + 5] = points[lp.pointIndex + 5];//opacity1
+                                points[pointLock.pointIndex + 6] = points[lp.pointIndex + 6];//opacity2
+                                points[pointLock.pointIndex + 7] = points[lp.pointIndex + 7];//opacity3
+                                                                                             //the last point has been moved back to somewhere else in memory
+                                                                                             //Console.WriteLine(Thread.CurrentThread.Name + " point index " + lp.pointIndex + " moved to point index " + pointLock.pointIndex);
+                                firstOpenSpace -= 8;
+                            }
+                            //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            points[pointLock.pointIndex + 0] = points[lp.pointIndex + 0];//p sition1
-                            points[pointLock.pointIndex + 1] = points[lp.pointIndex + 1];//position2
-                            points[pointLock.pointIndex + 2] = points[lp.pointIndex + 2];//size1
-                            points[pointLock.pointIndex + 3] = points[lp.pointIndex + 3];//size2
-                            points[pointLock.pointIndex + 4] = points[lp.pointIndex + 4];//size3
-                            points[pointLock.pointIndex + 5] = points[lp.pointIndex + 5];//opacity1
-                            points[pointLock.pointIndex + 6] = points[lp.pointIndex + 6];//opacity2
-                            points[pointLock.pointIndex + 7] = points[lp.pointIndex + 7];//opacity3
-                                                                                         //the last point has been moved back to somewhere else in memory
-                            Console.WriteLine(Thread.CurrentThread.Name + " point index " + lp.pointIndex + " moved to point index " + pointLock.pointIndex);
-                            firstOpenSpace -= 8;
+                            //Console.WriteLine("RemovePoint3 has failed for index " + index);
+                            //Console.WriteLine(ex);
                         }
-                        lp.pointIndex = index+cornerSpace;
-                        //PointLocks.ReleaseOne(lp);
-                        //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
+                        finally
+                        {
+                            if (lp != null)
+                                Monitor.Exit(lp.secondaryLock);
+                            PointLocks.ReleaseOne(lp);
+                        }
                     }
                 }
+
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine("RemovePoint2 has failed for index " + index);
+                //Console.WriteLine(ex);
+            }
+            finally
+            {
+                if (pointLock != null)
+                    Monitor.Exit(pointLock.secondaryLock);
                 PointLocks.ReleaseOne(pointLock);
             }
         }
 
         public void UpdatePoint(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
-            var pointLock = PointLocks.GetOne(index);
-            Console.WriteLine(Thread.CurrentThread.Name + " Updating point index " + pointLock.pointIndex);
-            lock (pointLock)
+            PointIndex pointLock = null;
+            try
             {
+                pointLock = PointLocks.GetOne(index);
+                Monitor.Enter(pointLock.secondaryLock);
+                //Console.WriteLine(Thread.CurrentThread.Name + " Updating point index " + pointLock.pointIndex);
+
                 if (x.HasValue) points[pointLock.pointIndex + 0] = x.Value;
                 if (y.HasValue) points[pointLock.pointIndex + 1] = y.Value;
                 if (r1.HasValue) points[pointLock.pointIndex + 2] = r1.Value;
@@ -309,15 +424,28 @@ namespace FuelMap
                 if (o1.HasValue) points[pointLock.pointIndex + 5] = o1.Value;
                 if (o2.HasValue) points[pointLock.pointIndex + 6] = o2.Value;
                 if (o3.HasValue) points[pointLock.pointIndex + 7] = o3.Value;
-
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine("UpdatePoint has failed for index " + index);
+                //Console.WriteLine(ex);
+            }
+            finally
+            {
+                if (pointLock != null)
+                    Monitor.Exit(pointLock.secondaryLock);
                 PointLocks.ReleaseOne(pointLock);
             }
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
-            var pointLock = PointLocks.GetOne(index);
-            lock (pointLock)
+            PointIndex pointLock = null;
+            try
             {
+                pointLock = PointLocks.GetOne(index);
+                Monitor.Enter(pointLock.secondaryLock);
+                //Console.WriteLine(Thread.CurrentThread.Name + " Updating point index " + pointLock.pointIndex);
+
                 if (x.HasValue) points[pointLock.pointIndex + 0] += x.Value;
                 if (y.HasValue) points[pointLock.pointIndex + 1] += y.Value;
                 if (r1.HasValue) points[pointLock.pointIndex + 2] += r1.Value;
@@ -326,7 +454,16 @@ namespace FuelMap
                 if (o1.HasValue) points[pointLock.pointIndex + 5] += o1.Value;
                 if (o2.HasValue) points[pointLock.pointIndex + 6] += o2.Value;
                 if (o3.HasValue) points[pointLock.pointIndex + 7] += o3.Value;
-
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine("UpdatePointRel has failed for index " + index);
+                //Console.WriteLine(ex);
+            }
+            finally
+            {
+                if (pointLock != null)
+                    Monitor.Exit(pointLock.secondaryLock);
                 PointLocks.ReleaseOne(pointLock);
             }
         }

@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FuelMap\FuelMap.csproj" />
     <ProjectReference Include="..\FunShapes\FunShapes.csproj" />
+    <ProjectReference Include="..\NodeDirectedFuelMap\NodeDirectedFuelMap.csproj" />
     <ProjectReference Include="..\openTKCircleThin\openTKCircleThin.csproj" />
     <ProjectReference Include="..\PointMap\PointMap.csproj" />
     <ProjectReference Include="..\RadiationMap\RadiationMap.csproj" />

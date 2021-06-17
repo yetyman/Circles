@@ -15,7 +15,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RadiationMap", "..\Radiatio
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HigherAbstractions", "HigherAbstractions", "{CE169675-36E2-48BD-84C4-A743CFBD4231}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FuelMap", "..\FuelMap\FuelMap.csproj", "{D2CE9EA8-9553-4407-86F9-51F3BD8E1EFF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FuelMap", "..\FuelMap\FuelMap.csproj", "{D2CE9EA8-9553-4407-86F9-51F3BD8E1EFF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NodeDirectedFuelMap", "..\NodeDirectedFuelMap\NodeDirectedFuelMap.csproj", "{BAC2314E-AA44-4AE8-A88D-C8637C7B9C21}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,6 +49,10 @@ Global
 		{D2CE9EA8-9553-4407-86F9-51F3BD8E1EFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D2CE9EA8-9553-4407-86F9-51F3BD8E1EFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D2CE9EA8-9553-4407-86F9-51F3BD8E1EFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BAC2314E-AA44-4AE8-A88D-C8637C7B9C21}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BAC2314E-AA44-4AE8-A88D-C8637C7B9C21}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BAC2314E-AA44-4AE8-A88D-C8637C7B9C21}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BAC2314E-AA44-4AE8-A88D-C8637C7B9C21}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -55,6 +61,7 @@ Global
 		{ABA4FA7A-5DFB-45A7-BA6B-191B09D64A8A} = {CE169675-36E2-48BD-84C4-A743CFBD4231}
 		{4D8B53E9-7F70-4121-8ED8-DDE2B142A8F9} = {CE169675-36E2-48BD-84C4-A743CFBD4231}
 		{D2CE9EA8-9553-4407-86F9-51F3BD8E1EFF} = {CE169675-36E2-48BD-84C4-A743CFBD4231}
+		{BAC2314E-AA44-4AE8-A88D-C8637C7B9C21} = {CE169675-36E2-48BD-84C4-A743CFBD4231}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3ABAFA92-5ED3-47C3-8553-95B506E143FE}

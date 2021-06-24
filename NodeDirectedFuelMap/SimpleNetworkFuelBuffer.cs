@@ -102,14 +102,14 @@ namespace NodeDirectedFuelMap
 
 
                         
-                        int lineIndex = rand.Next(0, lines.LineCount) * 2;
-                        lines.RemoveLine(lineIndex);
+                        //int lineIndex = rand.Next(0, lines.LineCount) * 2;
+                        //lines.RemoveLine(lineIndex);
 
-                        for (int x = 0; x < 9; x++)
-                            lines.AddLine(
-                                rand.Next(2, points.PointCount) * 8,
-                                rand.Next(2, points.PointCount) * 8
-                            );
+                        //for (int x = 0; x < 9; x++)
+                        //    lines.AddLine(
+                        //        rand.Next(2, points.PointCount) * 8,
+                        //        rand.Next(2, points.PointCount) * 8
+                        //    );
                     }
 
                     lock (RandPool)
@@ -389,7 +389,7 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error using lines shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, LinesBuffer);
             CheckGPUErrors("Error binding to lines fbo:");
-            //GL.DrawElements(PrimitiveType.Lines, lines.LineCount, DrawElementsType.UnsignedInt, lines.lines);
+            GL.DrawElements(PrimitiveType.Lines, lines.LineCount, DrawElementsType.UnsignedInt, lines.lines);
             CheckGPUErrors("Error rendering to line buffer:");
         }
 

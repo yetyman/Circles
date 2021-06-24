@@ -167,13 +167,15 @@ namespace NodeDirectedFuelMap
                     (float)rand.NextDouble() * overlap / count
                 );
 
+            }
+            for (int i = 0; i < count; i++)
+            {
                 //just guesstimating an average of 9 children per node. completely random
                 for(int x = 0; x < 9; x++)
                     lines.AddLine(
                         rand.Next(2, points.PointCount) * 8,
                         rand.Next(2, points.PointCount) * 8
                     );
-
             }
 
             GL.ClearColor(0f, 0f, 0f, 0.0f);
@@ -205,7 +207,7 @@ namespace NodeDirectedFuelMap
             RequestFuelShader = new SomeSubtractAndAddShader("ScreenTriangle.vert", "SomeSubtractAndAddFrag.frag", FuelPoolTexture, FuelRequestTexture, .01f);
             FuelUsedShader = new SomeMinAndDivideShader("ScreenTriangle.vert", "SomeMinFrag.frag", FuelPoolTexture, FuelRequestTexture);
             FuelZeroingShader = new SomeZeroingShader("ScreenTriangle.vert", "SomeZeroingFrag.frag", FuelPoolTexture);
-            RenderLinesShader = new MultiColorLineShader(ClientSize, "LineLayerShader.vert", "LinesShader.frag", lines);
+            RenderLinesShader = new MultiColorLineShader(ClientSize, "LineLayerShader.vert", "LineShader.frag");
             texShader = new MultiViewShader("ScreenTriangle.vert", "MultiViewTexture.frag");
 
             //TODO: setup line buffer data arrays, vertex shaders, and line shaders
@@ -223,6 +225,7 @@ namespace NodeDirectedFuelMap
             // 3. then set our vertex attributes pointers
             //which attribute are we settings, how many is it, what is each it?, should it be normalized?, what's the total size?,
             //TODO: i may not want to normalize
+            
             GL.VertexAttribPointer(CreateFuelRequestShader.PositionLocation, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 12 * sizeof(float));
             GL.EnableVertexAttribArray(CreateFuelRequestShader.PositionLocation);
             GL.VertexAttribPointer(CreateFuelRequestShader.SizeLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 14 * sizeof(float));
@@ -237,11 +240,10 @@ namespace NodeDirectedFuelMap
             GL.VertexAttribDivisor(CreateFuelRequestShader.OpacityLocation, 1);
             GL.VertexAttribDivisor(CreateFuelRequestShader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
 
-
             TwoTriangleElementBuffer = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
             GL.BufferData(BufferTarget.ElementArrayBuffer, indices.Length * sizeof(uint), indices, BufferUsageHint.StaticDraw);
-
+            
             CheckGPUErrors("Error Loading before Float Buffer");//just in case
 
             //new Thread(ProcessingLoopFake).Start();
@@ -338,8 +340,8 @@ namespace NodeDirectedFuelMap
         public float[] LinesMinMax = new float[2] { 0, 1 };
         public void RequestFuel()
         {
-
-            FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y, FuelPoolTexture);
+            FuelZeroingShader.Use();
+            FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
             //PoolMinMax[1] = FuelZeroingShader.Average;
 
             //create request pool buffer
@@ -377,23 +379,22 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error binding to opacity fbo:");
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
             CheckGPUErrors("Error rendering to min fuel pool float buffer:");
-            
 
         }
         public void RenderNodeLines()
         {
+            
             //process fuel pool regen and request subtraction
             RenderLinesShader.Use();
             CheckGPUErrors("Error using lines shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, LinesBuffer);
             CheckGPUErrors("Error binding to lines fbo:");
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
+            //GL.DrawElements(PrimitiveType.Lines, lines.LineCount, DrawElementsType.UnsignedInt, lines.lines);
             CheckGPUErrors("Error rendering to line buffer:");
         }
 
         public void RenderInstrumentation()
         {
-
             //draw float buffer from texture to back buffer. one call for each one we'd like to display
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
@@ -407,7 +408,7 @@ namespace NodeDirectedFuelMap
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             texShader.Use(LinesTexture, LinesBounds, LinesMinMax);
-            GL.DrawArrays(PrimitiveType.Lines, 0, lines.LineCount);
+            GL.DrawArrays(PrimitiveType.Lines, 0, 3);
 
             CheckGPUErrors("Error rendering to back buffer:");
         }

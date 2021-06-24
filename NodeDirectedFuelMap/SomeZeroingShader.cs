@@ -99,9 +99,9 @@ namespace NodeDirectedFuelMap
 
             CheckGPUErrors("Error setting texture:");
         }
-        public void CheckAverage(float w, float h, int texture)
+        public void CheckAverage(float w, float h)
         {
-            GL.GenerateTextureMipmap(texture);
+            GL.GenerateTextureMipmap(FromTexture);
             CheckGPUErrors("Error generating mipmap:");
 
             float fPixel = new float();
@@ -110,9 +110,15 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error binding texture:");
 
             var level = (int)(Math.Floor(Math.Log2(Math.Max(w, h))));
-            GL.GetTexImage<float>(TextureTarget.Texture2D, level, PixelFormat.Red, PixelType.Float, ref fPixel);
-            CheckGPUErrors("Error calculating average:");
-
+            try
+            {
+                GL.GetTexImage<float>(TextureTarget.Texture2D, level, PixelFormat.Red, PixelType.Float, ref fPixel);
+            }
+            catch (Exception ex)
+            {
+                //this catch isnt doing anything. app still crashes. figure this out then get the lines to show up
+                CheckGPUErrors("Error calculating average:");
+            }
             Average = fPixel;//single channel texture
         }
         private void CheckGPUErrors(string errorPrefix)

@@ -9,7 +9,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="LineLayerShader.vert">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="CircleLayerShader.vert">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="LineShader.frag">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="CircleShader.frag">

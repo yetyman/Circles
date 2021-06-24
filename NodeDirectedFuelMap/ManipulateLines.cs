@@ -12,7 +12,7 @@ namespace NodeDirectedFuelMap
         //for now, for clarity, i'll use c# and update the buffered data as i have been, 
         //this will like be the first bottleneck to overcome as the graph becomes functional
 
-        public float[] lines;
+        public int[] lines;
         public int firstOpenSpace = 0;
         public object firstOpenLock = new object();
 
@@ -31,7 +31,7 @@ namespace NodeDirectedFuelMap
                 //include the corners array in buffered data
                 var actualLength = maxLineCount * lineSize;
 
-                lines = new float[actualLength];
+                lines = new int[actualLength];
 
                 firstOpenSpace = bufferSpace;
             }
@@ -251,7 +251,7 @@ namespace NodeDirectedFuelMap
 
             WaitforDuplicates(lp);
 
-            lines[lp + 0] = pointIndex1;//p sition1
+            lines[lp + 0] = pointIndex1;//position1
             lines[lp + 1] = pointIndex2;//position2
 
             RemoveFromDuplicates(lp);

@@ -284,7 +284,7 @@ namespace NodeDirectedFuelMap
 
             WaitforDuplicates(lp);
 
-            points[lp + 0] = x;//p sition1
+            points[lp + 0] = x;//position1
             points[lp + 1] = y;//position2
             points[lp + 2] = r1.Value;//size1
             points[lp + 3] = r2.Value;//size2

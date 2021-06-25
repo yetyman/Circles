@@ -13,4 +13,3 @@ D:\Users\YETY\Documents\code projects\Circles\FuelMap\obj\Debug\netcoreapp3.1\Fu
 D:\Users\YETY\Documents\code projects\Circles\FuelMap\obj\Debug\netcoreapp3.1\FuelMap.csproj.CoreCompileInputs.cache
 D:\Users\YETY\Documents\code projects\Circles\FuelMap\obj\Debug\netcoreapp3.1\FuelMap.dll
 D:\Users\YETY\Documents\code projects\Circles\FuelMap\obj\Debug\netcoreapp3.1\FuelMap.pdb
-D:\Users\YETY\Documents\code projects\Circles\FuelMap\obj\Debug\netcoreapp3.1\FuelMap.csprojAssemblyReference.cache

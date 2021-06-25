@@ -53,11 +53,6 @@ namespace NodeDirectedFuelMap
             //MaxPointSize = vec[1];
             //MinPointSize = vec[0];
 
-            ///.vert implementation specific
-            PositionLocation = 0;
-            SizeLocation = 1;
-            OpacityLocation = 3;
-            SquareCornerLocation = 2;
 
             VertexShader = GL.CreateShader(ShaderType.VertexShader);
             GL.ShaderSource(VertexShader, VertexShaderSource);
@@ -94,6 +89,12 @@ namespace NodeDirectedFuelMap
             GL.DeleteShader(VertexShader);
 
 
+            ///.vert implementation specific
+            
+            PositionLocation = GL.GetAttribLocation(Handle, "aPosition");;
+            SizeLocation = GL.GetAttribLocation(Handle, "aSize");
+            OpacityLocation = GL.GetAttribLocation(Handle, "aOpacity");
+            SquareCornerLocation = GL.GetAttribLocation(Handle, "aCorner");
 
             LayerLocation = GL.GetUniformLocation(Handle, "layer");
             ColorLocation = GL.GetUniformLocation(Handle, "aColor");

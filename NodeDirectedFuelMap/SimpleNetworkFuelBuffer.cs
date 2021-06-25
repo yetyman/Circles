@@ -78,8 +78,8 @@ namespace NodeDirectedFuelMap
                 //just guesstimating an average of 9 children per node. completely random
                 for(int x = 0; x < 9; x++)
                     ManipulatedLines.AddLine(
-                        rand.Next(2, points.PointCount) * 8,
-                        rand.Next(2, points.PointCount) * 8
+                        rand.Next(0, points.PointCount),
+                        rand.Next(0, points.PointCount)
                     );
             }
 
@@ -102,7 +102,7 @@ namespace NodeDirectedFuelMap
             CheckFramebufferStatus(FuelRequestBuffer);
 
             LinesBuffer = InitializeFrameBuffer();
-            LinesTexture = InitializeFloatFrameBufferTexture();
+            LinesTexture = InitializeRGBAFrameBufferTexture();
             CheckFramebufferStatus(LinesBuffer);
 
 
@@ -126,24 +126,6 @@ namespace NodeDirectedFuelMap
             // 2. copy our vertices array in a buffer for OpenGL to use
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
             GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
-
-            // 3. then set our vertex attributes pointers
-            //which attribute are we settings, how many is it, what is each it?, should it be normalized?, what's the total size?,
-            //TODO: i may not want to normalize
-            
-            GL.VertexAttribPointer(CreateFuelRequestShader.PositionLocation, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 12 * sizeof(float));
-            GL.EnableVertexAttribArray(CreateFuelRequestShader.PositionLocation);
-            GL.VertexAttribPointer(CreateFuelRequestShader.SizeLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 14 * sizeof(float));
-            GL.EnableVertexAttribArray(CreateFuelRequestShader.SizeLocation);
-            GL.VertexAttribPointer(CreateFuelRequestShader.OpacityLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 17 * sizeof(float));
-            GL.EnableVertexAttribArray(CreateFuelRequestShader.OpacityLocation);
-            GL.VertexAttribPointer(CreateFuelRequestShader.SquareCornerLocation, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
-            GL.EnableVertexAttribArray(CreateFuelRequestShader.SquareCornerLocation); 
-
-            GL.VertexAttribDivisor(CreateFuelRequestShader.PositionLocation, 1);//use from start to end, based on instance id instead of vertex index
-            GL.VertexAttribDivisor(CreateFuelRequestShader.SizeLocation, 1);
-            GL.VertexAttribDivisor(CreateFuelRequestShader.OpacityLocation, 1);
-            GL.VertexAttribDivisor(CreateFuelRequestShader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
 
             TwoTriangleElementBuffer = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
@@ -236,8 +218,8 @@ namespace NodeDirectedFuelMap
                             int lineIndex = rand.Next(0, ManipulatedLines.LineCount) * 2;
                             ManipulatedLines.RemoveLine(lineIndex);
                             ManipulatedLines.AddLine(
-                                rand.Next(2, points.PointCount) * 8,
-                                rand.Next(2, points.PointCount) * 8
+                                rand.Next(0, points.PointCount),
+                                rand.Next(0, points.PointCount)
                             );
                         }
                     }
@@ -340,6 +322,27 @@ namespace NodeDirectedFuelMap
         public float[] LinesMinMax = new float[2] { 0, 1 };
         public void RequestFuel()
         {
+
+            // 3. then set our vertex attributes pointers
+            //which attribute are we settings, how many is it, what is each it?, should it be normalized?, what's the total size?,
+            //TODO: i may not want to normalize
+
+            GL.VertexAttribPointer(CreateFuelRequestShader.PositionLocation, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 12 * sizeof(float));
+            GL.EnableVertexAttribArray(CreateFuelRequestShader.PositionLocation);
+            GL.VertexAttribPointer(CreateFuelRequestShader.SizeLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 14 * sizeof(float));
+            GL.EnableVertexAttribArray(CreateFuelRequestShader.SizeLocation);
+            GL.VertexAttribPointer(CreateFuelRequestShader.OpacityLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 17 * sizeof(float));
+            GL.EnableVertexAttribArray(CreateFuelRequestShader.OpacityLocation);
+            GL.VertexAttribPointer(CreateFuelRequestShader.SquareCornerLocation, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+            GL.EnableVertexAttribArray(CreateFuelRequestShader.SquareCornerLocation);
+
+            GL.VertexAttribDivisor(CreateFuelRequestShader.PositionLocation, 1);//use from start to end, based on instance id instead of vertex index
+            GL.VertexAttribDivisor(CreateFuelRequestShader.SizeLocation, 1);
+            GL.VertexAttribDivisor(CreateFuelRequestShader.OpacityLocation, 1);
+            GL.VertexAttribDivisor(CreateFuelRequestShader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
+
+
+
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
             FuelZeroingShader.Use();
             FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
@@ -384,7 +387,19 @@ namespace NodeDirectedFuelMap
         }
         public void RenderNodeLines()
         {
-            
+
+
+            // 3. then set our vertex attributes pointers
+            //which attribute are we settings, how many is it, what is each it?, should it be normalized?, what's the total size?,
+            //TODO: i may not want to normalize
+
+            GL.VertexAttribPointer(RenderLinesShader.PositionLocation, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 12 * sizeof(float));
+            GL.EnableVertexAttribArray(RenderLinesShader.PositionLocation);
+
+            GL.VertexAttribDivisor(RenderLinesShader.PositionLocation, 0);//use from start to end, based on instance id instead of vertex index
+
+
+
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
             //process fuel pool regen and request subtraction
             RenderLinesShader.Use();
@@ -411,7 +426,7 @@ namespace NodeDirectedFuelMap
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             texShader.Use(LinesTexture, LinesBounds, LinesMinMax);
-            GL.DrawArrays(PrimitiveType.Lines, 0, 3);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             CheckGPUErrors("Error rendering to back buffer:");
         }

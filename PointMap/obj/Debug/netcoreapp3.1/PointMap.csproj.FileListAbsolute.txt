@@ -10,4 +10,3 @@ D:\Users\YETY\Documents\code projects\Circles\PointMap\obj\Debug\netcoreapp3.1\P
 D:\Users\YETY\Documents\code projects\Circles\PointMap\obj\Debug\netcoreapp3.1\PointMap.pdb
 D:\Users\YETY\Documents\code projects\Circles\PointMap\bin\Debug\netcoreapp3.1\CircleShader.frag
 D:\Users\YETY\Documents\code projects\Circles\PointMap\bin\Debug\netcoreapp3.1\Texture.frag
-D:\Users\YETY\Documents\code projects\Circles\PointMap\obj\Debug\netcoreapp3.1\PointMap.csprojAssemblyReference.cache

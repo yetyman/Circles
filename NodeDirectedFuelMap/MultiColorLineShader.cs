@@ -14,8 +14,11 @@ namespace NodeDirectedFuelMap
         Stopwatch _timer = new Stopwatch();
         public int VertexShader { get; private set; }
         public int FragmentShader { get; private set; }
-        public int ViewportSizeLocation { get; private set; }
+        public int PositionLocation { get; private set; }
+        public int LayerLocation { get; internal set; }
+        public int ViewPortSizeLocation { get; internal set; }
         public Vector2i ViewPortSize { get; internal set; }
+        public int Layer { get; set; }
 
         public MultiColorLineShader(Vector2i viewPortSize, string vertexPath, string fragmentPath)
         {
@@ -82,7 +85,9 @@ namespace NodeDirectedFuelMap
             GL.DeleteShader(VertexShader);
 
 
-            ViewportSizeLocation = GL.GetUniformLocation(Handle, "viewPortSize");
+            PositionLocation = GL.GetAttribLocation(Handle, "aPosition");
+
+            LayerLocation = GL.GetUniformLocation(Handle, "layer");
         }
         public int GetAttribLocation(string attribName)
         {
@@ -91,11 +96,12 @@ namespace NodeDirectedFuelMap
         public void Use()
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
+            //GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);//sooo much prettier
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
-            GL.Uniform2(ViewportSizeLocation, ViewPortSize);
+            GL.Uniform1(LayerLocation, Layer);
         }
         private bool disposedValue = false;
 

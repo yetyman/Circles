@@ -39,6 +39,7 @@ namespace NodeDirectedFuelMap
             0, 1, 3,   // first triangle
             0, 2, 3    // second triangle
         };
+
         public SimpleNetworkFuelBuffer(int width, int height, string title) : base(width, height, title)
         {
             points.Allocate(count);
@@ -298,16 +299,6 @@ namespace NodeDirectedFuelMap
             return requestBuffer;
         }
 
-        private void CheckGPUErrors(string errorPrefix)
-        {
-            ErrorCode err;
-
-            while ((err = GL.GetError()) != ErrorCode.NoError)
-            {
-                // Process/log the error.
-                Console.WriteLine(errorPrefix + err);
-            }
-        }
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             UpdateLocations();
@@ -389,7 +380,7 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error using lines shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, LinesBuffer);
             CheckGPUErrors("Error binding to lines fbo:");
-            GL.DrawElements(PrimitiveType.Lines, lines.LineCount, DrawElementsType.UnsignedInt, lines.lines);
+            //GL.DrawElements(PrimitiveType.Lines, lines.LineCount, DrawElementsType.UnsignedInt, lines.lines);
             CheckGPUErrors("Error rendering to line buffer:");
         }
 

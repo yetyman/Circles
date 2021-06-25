@@ -102,15 +102,17 @@ namespace NodeDirectedFuelMap
 
 
 
-                        
-                        //int lineIndex = rand.Next(0, lines.LineCount) * 2;
-                        //lines.RemoveLine(lineIndex);
 
-                        //for (int x = 0; x < 9; x++)
-                        //    lines.AddLine(
-                        //        rand.Next(2, points.PointCount) * 8,
-                        //        rand.Next(2, points.PointCount) * 8
-                        //    );
+
+                        for (int x = 0; x < 9; x++)
+                        {
+                            int lineIndex = rand.Next(0, lines.LineCount) * 2;
+                            lines.RemoveLine(lineIndex);
+                            lines.AddLine(
+                                rand.Next(2, points.PointCount) * 8,
+                                rand.Next(2, points.PointCount) * 8
+                            );
+                        }
                     }
 
                     lock (RandPool)

@@ -219,7 +219,7 @@ namespace NodeDirectedFuelMap
         HashSet<int> indexes = new HashSet<int>();
         void WaitforDuplicates(int index)
         {
-            while (indexes.Contains(index)) ;
+            while (indexes.Contains(index));
             lock(indexes)
                 indexes.Add(index);
         }

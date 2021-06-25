@@ -16,6 +16,7 @@ namespace NodeDirectedFuelMap
         int PointVertexArrayBuffer;
         int PointArrayObject;
         int TwoTriangleElementBuffer;//squares
+        int LineIndexesElementBuffer;//line indexes
 
         int FuelPoolBuffer;
         int FuelRequestBuffer;
@@ -34,7 +35,7 @@ namespace NodeDirectedFuelMap
         MultiViewShader texShader;
 
         ManipulatePoints points = new ManipulatePoints();
-        ManipulateLines lines = new ManipulateLines();
+        ManipulateLines ManipulatedLines = new ManipulateLines();
         uint[] indices = {  // note that we start from 0!
             0, 1, 3,   // first triangle
             0, 2, 3    // second triangle
@@ -43,111 +44,12 @@ namespace NodeDirectedFuelMap
         public SimpleNetworkFuelBuffer(int width, int height, string title) : base(width, height, title)
         {
             points.Allocate(count);
-            lines.Allocate(count*9);
+            ManipulatedLines.Allocate(count*9);
         }
 
         private int threadNo = 0;
         object lockObj = new object();
         Dictionary<Random, bool> RandPool = new Dictionary<Random, bool>();
-        private void UpdateLocations()
-        {
-            //Console.WriteLine("frame");
-            var loop = Parallel.For(0, 4, (index) =>
-            {
-                try
-                {
-                    Random rand = null;
-                    lock (RandPool)
-                    {
-                        rand = RandPool.FirstOrDefault(x => !x.Value).Key;
-                        if (rand == null) RandPool.Add(rand = new Random(), true);
-                        RandPool[rand] = true;
-                    }
-                    if (string.IsNullOrWhiteSpace(Thread.CurrentThread.Name))
-                    {
-                        lock (lockObj)
-                            Thread.CurrentThread.Name = "Thread " + threadNo++;
-                    }
-                    for (int i = 0; i < 250; i++)
-                    {
-                        //update all kinds of values
-
-                        int vertexIndex = rand.Next(2, points.PointCount) * 8;
-                        points.RemovePoint(vertexIndex);
-
-                        vertexIndex = rand.Next(0, points.PointCount) * 8;
-                        points.UpdatePoint(vertexIndex,
-                            (float)rand.NextDouble() * 2 - .5f,//position1
-                            (float)rand.NextDouble() * 2 - .5f,//position2
-                            (float)rand.NextDouble(),//size1
-                            (float)rand.NextDouble(),//size2
-                            (float)rand.NextDouble(),//size3
-                            (float)rand.NextDouble() * overlap / count,//opacity1
-                            (float)rand.NextDouble() * overlap / count,//opacity2                         
-                            (float)rand.NextDouble() * overlap / count//opacity3
-                        );
-
-                        vertexIndex = rand.Next(0, points.PointCount) * 8;
-                        points.AddPoint(
-                            (float)rand.NextDouble() * 2 - .5f,//position1
-                            (float)rand.NextDouble() * 2 - .5f,//position2
-                            (float)rand.NextDouble(),//size1
-                            (float)rand.NextDouble(),//size2
-                            (float)rand.NextDouble(),//size3
-                            (float)rand.NextDouble() * overlap / count,//opacity1
-                            (float)rand.NextDouble() * overlap / count,//opacity2                         
-                            (float)rand.NextDouble() * overlap / count//opacity3);
-                        );
-
-
-
-
-
-
-                        for (int x = 0; x < 9; x++)
-                        {
-                            int lineIndex = rand.Next(0, lines.LineCount) * 2;
-                            lines.RemoveLine(lineIndex);
-                            lines.AddLine(
-                                rand.Next(2, points.PointCount) * 8,
-                                rand.Next(2, points.PointCount) * 8
-                            );
-                        }
-                    }
-
-                    lock (RandPool)
-                    {
-                        RandPool[rand] = false;
-                    }
-                }
-                catch(Exception ex)
-                {
-                    ;
-                }
-            });
-            while (!loop.IsCompleted) ;
-            //GL.BufferSubData //eventually.
-            GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
-        }
-        private void ProcessingLoopFake()
-        {
-            var rand = new Random();
-            Stopwatch _timer = new Stopwatch();
-            _timer.Start();
-            long timeStart = _timer.ElapsedMilliseconds;
-            long timeEnd = _timer.ElapsedMilliseconds;
-            long frameTime = 16;
-            while (true)
-            {
-                timeStart = _timer.ElapsedMilliseconds;
-
-                UpdateLocations();
-
-                timeEnd = _timer.ElapsedMilliseconds;
-                Thread.Sleep(Math.Max((int)(frameTime - (timeEnd - timeStart)),0));//roughly sync updates to frame speed adjusting for this thread's processing time
-            }
-
-        }
         static int count = 10000;
         static float overlap = 6;
         static float threshold = .2f;
@@ -175,7 +77,7 @@ namespace NodeDirectedFuelMap
             {
                 //just guesstimating an average of 9 children per node. completely random
                 for(int x = 0; x < 9; x++)
-                    lines.AddLine(
+                    ManipulatedLines.AddLine(
                         rand.Next(2, points.PointCount) * 8,
                         rand.Next(2, points.PointCount) * 8
                     );
@@ -247,12 +149,117 @@ namespace NodeDirectedFuelMap
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
             GL.BufferData(BufferTarget.ElementArrayBuffer, indices.Length * sizeof(uint), indices, BufferUsageHint.StaticDraw);
             
+            LineIndexesElementBuffer = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, ManipulatedLines.LineCount*2 * sizeof(uint), ManipulatedLines.lines, BufferUsageHint.DynamicDraw);
+            
             CheckGPUErrors("Error Loading before Float Buffer");//just in case
 
             //new Thread(ProcessingLoopFake).Start();
             base.OnLoad();
         }
 
+        
+        private void ProcessingLoopFake()
+        {
+            var rand = new Random();
+            Stopwatch _timer = new Stopwatch();
+            _timer.Start();
+            long timeStart = _timer.ElapsedMilliseconds;
+            long timeEnd = _timer.ElapsedMilliseconds;
+            long frameTime = 16;
+            while (true)
+            {
+                timeStart = _timer.ElapsedMilliseconds;
+
+                UpdateLocations();
+
+                timeEnd = _timer.ElapsedMilliseconds;
+                Thread.Sleep(Math.Max((int)(frameTime - (timeEnd - timeStart)), 0));//roughly sync updates to frame speed adjusting for this thread's processing time
+            }
+
+        }
+        private void UpdateLocations()
+        {
+            //Console.WriteLine("frame");
+            var loop = Parallel.For(0, 4, (index) =>
+            {
+                try
+                {
+                    Random rand = null;
+                    lock (RandPool)
+                    {
+                        rand = RandPool.FirstOrDefault(x => !x.Value).Key;
+                        if (rand == null) RandPool.Add(rand = new Random(), true);
+                        RandPool[rand] = true;
+                    }
+                    if (string.IsNullOrWhiteSpace(Thread.CurrentThread.Name))
+                    {
+                        lock (lockObj)
+                            Thread.CurrentThread.Name = "Thread " + threadNo++;
+                    }
+                    for (int i = 0; i < 250; i++)
+                    {
+                        //update all kinds of values
+
+                        int vertexIndex = rand.Next(2, points.PointCount) * 8;
+                        points.RemovePoint(vertexIndex);
+
+                        vertexIndex = rand.Next(0, points.PointCount) * 8;
+                        points.UpdatePoint(vertexIndex,
+                            (float)rand.NextDouble() * 2 - .5f,//position1
+                            (float)rand.NextDouble() * 2 - .5f,//position2
+                            (float)rand.NextDouble(),//size1
+                            (float)rand.NextDouble(),//size2
+                            (float)rand.NextDouble(),//size3
+                            (float)rand.NextDouble() * overlap / count,//opacity1
+                            (float)rand.NextDouble() * overlap / count,//opacity2                         
+                            (float)rand.NextDouble() * overlap / count//opacity3
+                        );
+
+                        vertexIndex = rand.Next(0, points.PointCount) * 8;
+                        points.AddPoint(
+                            (float)rand.NextDouble() * 2 - .5f,//position1
+                            (float)rand.NextDouble() * 2 - .5f,//position2
+                            (float)rand.NextDouble(),//size1
+                            (float)rand.NextDouble(),//size2
+                            (float)rand.NextDouble(),//size3
+                            (float)rand.NextDouble() * overlap / count,//opacity1
+                            (float)rand.NextDouble() * overlap / count,//opacity2                         
+                            (float)rand.NextDouble() * overlap / count//opacity3);
+                        );
+
+
+
+                        for (int x = 0; x < 9; x++)
+                        {
+                            int lineIndex = rand.Next(0, ManipulatedLines.LineCount) * 2;
+                            ManipulatedLines.RemoveLine(lineIndex);
+                            ManipulatedLines.AddLine(
+                                rand.Next(2, points.PointCount) * 8,
+                                rand.Next(2, points.PointCount) * 8
+                            );
+                        }
+                    }
+
+                    lock (RandPool)
+                    {
+                        RandPool[rand] = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ;
+                }
+            });
+            while (!loop.IsCompleted) ;
+            //GL.BufferSubData //eventually.
+            GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
+
+
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, ManipulatedLines.LineCount * 2 * sizeof(uint), ManipulatedLines.lines, BufferUsageHint.DynamicDraw);
+        }
         private void CheckFramebufferStatus(int requestBuffer)
         {
             var status = GL.CheckNamedFramebufferStatus(requestBuffer, FramebufferTarget.Framebuffer);
@@ -333,6 +340,7 @@ namespace NodeDirectedFuelMap
         public float[] LinesMinMax = new float[2] { 0, 1 };
         public void RequestFuel()
         {
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
             FuelZeroingShader.Use();
             FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
             //PoolMinMax[1] = FuelZeroingShader.Average;
@@ -377,17 +385,19 @@ namespace NodeDirectedFuelMap
         public void RenderNodeLines()
         {
             
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
             //process fuel pool regen and request subtraction
             RenderLinesShader.Use();
             CheckGPUErrors("Error using lines shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, LinesBuffer);
             CheckGPUErrors("Error binding to lines fbo:");
-            //GL.DrawElements(PrimitiveType.Lines, lines.LineCount, DrawElementsType.UnsignedInt, lines.lines);
+            GL.DrawElements(BeginMode.Lines, ManipulatedLines.lines.Length, DrawElementsType.UnsignedInt, 0);
             CheckGPUErrors("Error rendering to line buffer:");
         }
 
         public void RenderInstrumentation()
         {
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
             //draw float buffer from texture to back buffer. one call for each one we'd like to display
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 

@@ -34,6 +34,8 @@ namespace NodeDirectedFuelMap
 
         MultiViewShader texShader;
 
+
+       
         ManipulatePoints points = new ManipulatePoints();
         ManipulateLines ManipulatedLines = new ManipulateLines();
         uint[] indices = {  // note that we start from 0!
@@ -43,7 +45,7 @@ namespace NodeDirectedFuelMap
 
         public SimpleNetworkFuelBuffer(int width, int height, string title) : base(width, height, title)
         {
-            points.Allocate(count);
+            points.Allocate(count*10);
             ManipulatedLines.Allocate(count*9);
         }
 

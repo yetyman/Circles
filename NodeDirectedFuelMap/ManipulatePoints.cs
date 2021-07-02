@@ -114,7 +114,6 @@ namespace NodeDirectedFuelMap
             {
                 neuron.pointIndex = index;
                 Neurons[index] = neuron;
-                Console.WriteLine($"the new neuron at {index} is {(Neurons[index] != null ? "Not " : "")} Null");
             }
         }
         private static int NeuronIDs = 0;
@@ -147,40 +146,17 @@ namespace NodeDirectedFuelMap
         }
         public void DeleteNeuron(Neuron n)
         {
-            lock (unusedNeurons)
-                lock (n)
-                    unusedNeurons.Remove(n);
+            unusedNeurons.Remove(n);
         }
-        public object obj = new object();
         public void MoveNeuron(int from, int to)
         {
             Neuron n = null;
 
-            //Console.WriteLine(Thread.CurrentThread.Name + $"Assigning {(Neurons[from] != null ? "Y" : "N")}{from} to {(Neurons[to] != null ? "Y" : "N")}{to}, from {from} should now be null");
-            //if (Neurons[from] == null)
-            //    Console.WriteLine($"Warning {from} is already null");
-
-            try
-            {
-                lock (Neurons[from])
-                {
-                    n = Neurons[from];
-                    Neurons[from] = null;//whenever this location is nulled, the data array ought to also be null at this location.
-                }
-            }catch(Exception ex)
-            {
-                ;//time to read log messages and figure out exactly what led to this
-            }
-
-            lock (Neurons[to])
-            {
-                Neurons[to] = n;
-                Neurons[to].pointIndex = to;
-
-                Console.WriteLine(Thread.CurrentThread.Name + $"Assigned {(Neurons[from] != null ? "Y" : "N")}{from} to {(Neurons[to] != null ? "Y" : "N")}{to}, from {from} should now be null, but is not locked an may not be null now. that's not a problem");
-                if (Neurons[to] == null)
-                    Console.WriteLine(Thread.CurrentThread.Name + $"Warning {to} is now null!");
-            }
+            n = Neurons[from];
+            Neurons[from] = null;//whenever this location is nulled, the data array ought to also be null at this location.
+                
+            Neurons[to] = n;
+            Neurons[to].pointIndex = to;
         }
 
         public HashSet<Neuron> unusedNeurons = new HashSet<Neuron>();
@@ -363,36 +339,6 @@ namespace NodeDirectedFuelMap
         }
 
 
-        HashSet<int> indexes = new HashSet<int>();
-        int adds = 0;
-        int removes = 0;
-        void WaitForDuplicates(int index)
-        {
-
-            lock (indexes) ;
-            Console.WriteLine($"Waiting  {index} on thread {Thread.CurrentThread.Name}");
-            while (true)
-            {
-                //lock(indexes)
-                if (!indexes.Contains(index)) break;
-            }
-            adds++;
-            lock (indexes)
-            {
-                Console.WriteLine($"Adding   {index} on thread {Thread.CurrentThread.Name}");
-                indexes.Add(index);
-            }
-        }
-
-        void RemoveFromDuplicates(int index)
-        {
-            removes++;
-            lock (indexes)
-            {
-                Console.WriteLine($"Removing {index} on thread {Thread.CurrentThread.Name}");
-                indexes.Remove(index);
-            }
-        }
         /// <summary>
         /// a few a frame, relatively rare, but no where near as rare as removes
         /// </summary>
@@ -414,50 +360,20 @@ namespace NodeDirectedFuelMap
             if (!o2.HasValue) o2 = DefaultFuelIntensity;
             if (!o3.HasValue) o3 = DefaultNodeCreationIntensity;
 
-            int lp;
-            //Console.WriteLine(Thread.CurrentThread.Name + $" BA");
-            lock (firstOpenLock)
-            {
-                lp = firstOpenSpace;
-                firstOpenSpace += pointSize;
-                //Console.WriteLine(Thread.CurrentThread.Name + $"ADDPT first open point is now {firstOpenSpace}");
-                //Console.WriteLine(Thread.CurrentThread.Name + " Adding point index " + pointLock.pointIndex);
+            int lp = firstOpenSpace;
+            firstOpenSpace += pointSize;
 
-                try
-                {
-                    WaitForDuplicates(lp);
-                    //Console.WriteLine(Thread.CurrentThread.Name + $" BB");
+            var n = CreateNeuron(x, y, r1, r2, r3, o1, o2, o3);
+            MoveNeuronToActive(n, lp);
 
-
-                    var n = CreateNeuron(x, y, r1, r2, r3, o1, o2, o3);
-                    //Console.WriteLine(Thread.CurrentThread.Name + $" BC");
-                    MoveNeuronToActive(n, lp);
-                    //Console.WriteLine(Thread.CurrentThread.Name + $" BD");
-
-                    points[lp + 0] = x;//position1
-                    points[lp + 1] = y;//position2
-                    points[lp + 2] = r1.Value;//size1
-                    points[lp + 3] = r2.Value;//size2
-                    points[lp + 4] = r3.Value;//size3
-                    points[lp + 5] = o1.Value;//opacity1
-                    points[lp + 6] = o2.Value;//opacity2
-                    points[lp + 7] = o3.Value;//opacity3
-
-
-                    RemoveFromDuplicates(lp);
-                    //Console.WriteLine(Thread.CurrentThread.Name + $" BE");
-                }
-                catch (Exception ex)
-                {
-                    ;
-                }
-                finally
-                {
-                    if (adds != removes)
-                        ;
-                }
-            }
-
+            points[lp + 0] = x;//position1
+            points[lp + 1] = y;//position2
+            points[lp + 2] = r1.Value;//size1
+            points[lp + 3] = r2.Value;//size2
+            points[lp + 4] = r3.Value;//size3
+            points[lp + 5] = o1.Value;//opacity1
+            points[lp + 6] = o2.Value;//opacity2
+            points[lp + 7] = o3.Value;//opacity3
         }
 
         /// <summary>
@@ -473,46 +389,20 @@ namespace NodeDirectedFuelMap
         /// <param name="o3">node creation intensity</param>
         public void ActivatePoint(Neuron neuron)
         {
-            int lp;
-            lock (firstOpenLock)
-            {
-                lp = firstOpenSpace;
-                firstOpenSpace += pointSize;
-                //Console.WriteLine(Thread.CurrentThread.Name + $"first open point is now {firstOpenSpace}");
-                //Console.WriteLine(Thread.CurrentThread.Name + " Adding point index " + pointLock.pointIndex);
-            }
+            int lp = firstOpenSpace;
+            firstOpenSpace += pointSize;
 
-            try
-            {
-                WaitForDuplicates(lp);
-                //Console.WriteLine(Thread.CurrentThread.Name + $" BA");
+            MoveNeuronToActive(neuron, lp);
 
+            points[lp + 0] = neuron.X;//position1
+            points[lp + 1] = neuron.Y;//position2
+            points[lp + 2] = neuron.ImpulseRadius;//size1
+            points[lp + 3] = neuron.FuelRadius;//size2
+            points[lp + 4] = neuron.NodeCreationRadius;//size3
+            points[lp + 5] = neuron.ImpulseIntensity;//opacity1
+            points[lp + 6] = neuron.FuelIntensity;//opacity2
+            points[lp + 7] = neuron.NodeCreationIntensity;//opacity3
 
-                MoveNeuronToActive(neuron, lp);
-                //Console.WriteLine(Thread.CurrentThread.Name + $" BB");
-
-                points[lp + 0] = neuron.X;//position1
-                points[lp + 1] = neuron.Y;//position2
-                points[lp + 2] = neuron.ImpulseRadius;//size1
-                points[lp + 3] = neuron.FuelRadius;//size2
-                points[lp + 4] = neuron.NodeCreationRadius;//size3
-                points[lp + 5] = neuron.ImpulseIntensity;//opacity1
-                points[lp + 6] = neuron.FuelIntensity;//opacity2
-                points[lp + 7] = neuron.NodeCreationIntensity;//opacity3
-
-
-                RemoveFromDuplicates(lp);
-                //Console.WriteLine(Thread.CurrentThread.Name + $" BC");
-            }
-            catch (Exception ex)
-            {
-                ;
-            }
-            finally
-            {
-                if (adds != removes)
-                    ;
-            }
         }
 
         /// <summary>
@@ -521,84 +411,49 @@ namespace NodeDirectedFuelMap
         /// <param name="index"></param>
         public void RemovePoint(int index)
         {
-            //Console.WriteLine(Thread.CurrentThread.Name + " point index " + index); 
-            
             index += cornerSpace;
 
-            try
+            points[index + 0] = 0;//position1
+            points[index + 1] = 0;//position2
+            points[index + 2] = 0;//size1
+            points[index + 3] = 0;//size2
+            points[index + 4] = 0;//size3
+            points[index + 5] = 0;//opacity1
+            points[index + 6] = 0;//opacity2
+            points[index + 7] = 0;//opacity3
+
+            DeleteNeuron(Neurons[index]);
+
+            //consolidate into continuous memory
+
+            int lp = firstOpenSpace - pointSize;
+            if (lp == index)
             {
-                WaitForDuplicates(index);
+                //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
 
-                points[index + 0] = 0;//position1
-                points[index + 1] = 0;//position2
-                points[index + 2] = 0;//size1
-                points[index + 3] = 0;//size2
-                points[index + 4] = 0;//size3
-                points[index + 5] = 0;//opacity1
-                points[index + 6] = 0;//opacity2
-                points[index + 7] = 0;//opacity3
-
-                DeleteNeuron(Neurons[index]);
-
-                //consolidate into continuous memory
-
-                //Console.WriteLine(Thread.CurrentThread.Name + " locking first open lock");
-                lock (firstOpenLock)//lock end pointer
-                {
-                    //Console.WriteLine(Thread.CurrentThread.Name + " We want the first thing that still exists to move back and consolidate memory space");
-                    int lp = firstOpenSpace - pointSize;
-                    //Console.WriteLine(Thread.CurrentThread.Name + $" From {lp} to {index} has obtained fs lock. removed point is {lp}");
-                    if (lp == index)
-                    {
-                        //Console.WriteLine(Thread.CurrentThread.Name + $" AA");
-                        //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
-
-                        //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
-                        //fringe case but basically never
-                        firstOpenSpace -= pointSize;
-                        //Console.WriteLine(Thread.CurrentThread.Name + $" REMOVE first open point is now {firstOpenSpace}");
-                        //Console.WriteLine(Thread.CurrentThread.Name + $" AB");
-                        return;
-                    }
-                    else
-                    {
-                        WaitForDuplicates(lp);
-                        //Console.WriteLine(Thread.CurrentThread.Name + $" AC");
-                        points[index + 0] = points[lp + 0];//position1
-                        points[index + 1] = points[lp + 1];//position2
-                        points[index + 2] = points[lp + 2];//size1
-                        points[index + 3] = points[lp + 3];//size2
-                        points[index + 4] = points[lp + 4];//size3
-                        points[index + 5] = points[lp + 5];//opacity1
-                        points[index + 6] = points[lp + 6];//opacity2
-                        points[index + 7] = points[lp + 7];//opacity3
-
-                        MoveNeuron(lp, index);
-                        //Console.WriteLine(Thread.CurrentThread.Name + $" AD");
-
-                        //the last point has been moved back to somewhere else in memory
-                        //Console.WriteLine(Thread.CurrentThread.Name + " point index " + lp.pointIndex + " moved to point index " + pointLock.pointIndex);
-                        firstOpenSpace -= pointSize;
-                        //Console.WriteLine(Thread.CurrentThread.Name + $" first open point is now {firstOpenSpace}");
-                        RemoveFromDuplicates(lp);
-                    }
-                    //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
-
-                }
-
-                RemoveFromDuplicates(index);
-                //Console.WriteLine(Thread.CurrentThread.Name + $" AE");
-
+                //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
+                //fringe case but basically never
+                firstOpenSpace -= pointSize;
+                return;
             }
-            catch (Exception ex)
+            else
             {
-                ;
+                points[index + 0] = points[lp + 0];//position1
+                points[index + 1] = points[lp + 1];//position2
+                points[index + 2] = points[lp + 2];//size1
+                points[index + 3] = points[lp + 3];//size2
+                points[index + 4] = points[lp + 4];//size3
+                points[index + 5] = points[lp + 5];//opacity1
+                points[index + 6] = points[lp + 6];//opacity2
+                points[index + 7] = points[lp + 7];//opacity3
+
+                MoveNeuron(lp, index);
+
+                //the last point has been moved back to somewhere else in memory
+                firstOpenSpace -= pointSize;
             }
-            finally
-            {
-                if (adds != removes)
-                    ;
-            }
+            //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
+
         }
 
         /// <summary>
@@ -609,143 +464,94 @@ namespace NodeDirectedFuelMap
         {
             index += cornerSpace;
 
-            try
+            points[index + 0] = 0;//position1
+            points[index + 1] = 0;//position2
+            points[index + 2] = 0;//size1
+            points[index + 3] = 0;//size2
+            points[index + 4] = 0;//size3
+            points[index + 5] = 0;//opacity1
+            points[index + 6] = 0;//opacity2
+            points[index + 7] = 0;//opacity3
+
+            MoveNeuronToUnused(Neurons[index]);
+
+            //consolidate into continuous memory
+
+            int lp = firstOpenSpace - pointSize;
+            if (lp == index)
             {
-                WaitForDuplicates(index);
+                //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
 
-                points[index + 0] = 0;//position1
-                points[index + 1] = 0;//position2
-                points[index + 2] = 0;//size1
-                points[index + 3] = 0;//size2
-                points[index + 4] = 0;//size3
-                points[index + 5] = 0;//opacity1
-                points[index + 6] = 0;//opacity2
-                points[index + 7] = 0;//opacity3
-
-                MoveNeuronToUnused(Neurons[index]);
-
-                //consolidate into continuous memory
-
-                lock (firstOpenLock)//lock end pointer
-                {
-                    int lp = firstOpenSpace - pointSize;
-                    if (lp == index + cornerSpace)
-                    {
-                        //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
-
-                        //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
-                        //fringe case but basically never
-                        firstOpenSpace -= pointSize;
-                        return;
-                    }
-                    else
-                    {
-                        points[index + 0] = points[lp + 0];//position1
-                        points[index + 1] = points[lp + 1];//position2
-                        points[index + 2] = points[lp + 2];//size1
-                        points[index + 3] = points[lp + 3];//size2
-                        points[index + 4] = points[lp + 4];//size3
-                        points[index + 5] = points[lp + 5];//opacity1
-                        points[index + 6] = points[lp + 6];//opacity2
-                        points[index + 7] = points[lp + 7];//opacity3
-
-                        MoveNeuron(lp, index);
-
-                        //the last point has been moved back to somewhere else in memory
-                        //Console.WriteLine(Thread.CurrentThread.Name + " point index " + lp.pointIndex + " moved to point index " + pointLock.pointIndex);
-                        firstOpenSpace -= pointSize;
-                    }
-                    //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
-                }
-
-                RemoveFromDuplicates(index);
+                //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
+                //fringe case but basically never
+                firstOpenSpace -= pointSize;
+                return;
             }
-            catch (Exception ex)
+            else
             {
-                ;
+                points[index + 0] = points[lp + 0];//position1
+                points[index + 1] = points[lp + 1];//position2
+                points[index + 2] = points[lp + 2];//size1
+                points[index + 3] = points[lp + 3];//size2
+                points[index + 4] = points[lp + 4];//size3
+                points[index + 5] = points[lp + 5];//opacity1
+                points[index + 6] = points[lp + 6];//opacity2
+                points[index + 7] = points[lp + 7];//opacity3
+
+                MoveNeuron(lp, index);
+
+                //the last point has been moved back to somewhere else in memory
+                firstOpenSpace -= pointSize;
             }
-            finally
-            {
-                if (adds != removes)
-                    ;
-            }
+            //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
+
         }
 
         public void UpdatePoint(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
             index += cornerSpace;
 
-            try
-            {
-                WaitForDuplicates(index);
+            if (x.HasValue) points[index + 0] = x.Value;
+            if (y.HasValue) points[index + 1] = y.Value;
+            if (r1.HasValue) points[index + 2] = r1.Value;
+            if (r2.HasValue) points[index + 3] = r2.Value;
+            if (r3.HasValue) points[index + 4] = r3.Value;
+            if (o1.HasValue) points[index + 5] = o1.Value;
+            if (o2.HasValue) points[index + 6] = o2.Value;
+            if (o3.HasValue) points[index + 7] = o3.Value;
 
-                if (x.HasValue) points[index + 0] = x.Value;
-                if (y.HasValue) points[index + 1] = y.Value;
-                if (r1.HasValue) points[index + 2] = r1.Value;
-                if (r2.HasValue) points[index + 3] = r2.Value;
-                if (r3.HasValue) points[index + 4] = r3.Value;
-                if (o1.HasValue) points[index + 5] = o1.Value;
-                if (o2.HasValue) points[index + 6] = o2.Value;
-                if (o3.HasValue) points[index + 7] = o3.Value;
+            if (x.HasValue) Neurons[index].X = x.Value;
+            if (y.HasValue) Neurons[index].Y = y.Value;
+            if (r1.HasValue) Neurons[index].ImpulseRadius = r1.Value;
+            if (r2.HasValue) Neurons[index].FuelRadius = r2.Value;
+            if (r3.HasValue) Neurons[index].NodeCreationRadius = r3.Value;
+            if (o1.HasValue) Neurons[index].ImpulseIntensity = o1.Value;
+            if (o2.HasValue) Neurons[index].FuelIntensity = o2.Value;
+            if (o3.HasValue) Neurons[index].NodeCreationIntensity = o3.Value;
 
-                if (x.HasValue) Neurons[index].X = x.Value;
-                if (y.HasValue) Neurons[index].Y = y.Value;
-                if (r1.HasValue) Neurons[index].ImpulseRadius = r1.Value;
-                if (r2.HasValue) Neurons[index].FuelRadius = r2.Value;
-                if (r3.HasValue) Neurons[index].NodeCreationRadius = r3.Value;
-                if (o1.HasValue) Neurons[index].ImpulseIntensity = o1.Value;
-                if (o2.HasValue) Neurons[index].FuelIntensity = o2.Value;
-                if (o3.HasValue) Neurons[index].NodeCreationIntensity = o3.Value;
-
-                RemoveFromDuplicates(index);
-            }
-            catch (Exception ex)
-            {
-                ;
-            }
-            finally
-            {
-                if (adds != removes)
-                    ;
-            }
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
             index += cornerSpace;
 
-            try
-            {
-                WaitForDuplicates(index);
+            if (x.HasValue) points[index + 0] += x.Value;
+            if (y.HasValue) points[index + 1] += y.Value;
+            if (r1.HasValue) points[index + 2] += r1.Value;
+            if (r2.HasValue) points[index + 3] += r2.Value;
+            if (r3.HasValue) points[index + 4] += r3.Value;
+            if (o1.HasValue) points[index + 5] += o1.Value;
+            if (o2.HasValue) points[index + 6] += o2.Value;
+            if (o3.HasValue) points[index + 7] += o3.Value;
 
-                if (x.HasValue) points[index + 0] += x.Value;
-                if (y.HasValue) points[index + 1] += y.Value;
-                if (r1.HasValue) points[index + 2] += r1.Value;
-                if (r2.HasValue) points[index + 3] += r2.Value;
-                if (r3.HasValue) points[index + 4] += r3.Value;
-                if (o1.HasValue) points[index + 5] += o1.Value;
-                if (o2.HasValue) points[index + 6] += o2.Value;
-                if (o3.HasValue) points[index + 7] += o3.Value;
+            if (x.HasValue) Neurons[index].X += x.Value;
+            if (y.HasValue) Neurons[index].Y += y.Value;
+            if (r1.HasValue) Neurons[index].ImpulseRadius += r1.Value;
+            if (r2.HasValue) Neurons[index].FuelRadius += r2.Value;
+            if (r3.HasValue) Neurons[index].NodeCreationRadius += r3.Value;
+            if (o1.HasValue) Neurons[index].ImpulseIntensity += o1.Value;
+            if (o2.HasValue) Neurons[index].FuelIntensity += o2.Value;
+            if (o3.HasValue) Neurons[index].NodeCreationIntensity += o3.Value;
 
-                if (x.HasValue) Neurons[index].X += x.Value;
-                if (y.HasValue) Neurons[index].Y += y.Value;
-                if (r1.HasValue) Neurons[index].ImpulseRadius += r1.Value;
-                if (r2.HasValue) Neurons[index].FuelRadius += r2.Value;
-                if (r3.HasValue) Neurons[index].NodeCreationRadius += r3.Value;
-                if (o1.HasValue) Neurons[index].ImpulseIntensity += o1.Value;
-                if (o2.HasValue) Neurons[index].FuelIntensity += o2.Value;
-                if (o3.HasValue) Neurons[index].NodeCreationIntensity += o3.Value;
-
-                RemoveFromDuplicates(index);
-            }
-            catch (Exception ex)
-            {
-                ;
-            }
-            finally
-            {
-                if (adds != removes)
-                    ;
-            }
         }
 
     }

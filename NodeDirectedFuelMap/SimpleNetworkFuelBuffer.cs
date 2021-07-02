@@ -163,81 +163,60 @@ namespace NodeDirectedFuelMap
             }
 
         }
+        RandomHelper Rand = new RandomHelper();
         private void UpdateLocations()
         {
-            //Console.WriteLine("frame");
-            var loop = Parallel.For(0, 4, (index) =>
+            try
             {
-                try
+                for (int i = 0; i < 50000; i++)
                 {
-                    Random rand = null;
-                    lock (RandPool)
-                    {
-                        rand = RandPool.FirstOrDefault(x => !x.Value).Key;
-                        if (rand == null) RandPool.Add(rand = new Random(), true);
-                        RandPool[rand] = true;
-                    }
-                    if (string.IsNullOrWhiteSpace(Thread.CurrentThread.Name))
-                    {
-                        lock (lockObj)
-                            Thread.CurrentThread.Name = "Thread " + threadNo++;
-                    }
-                    for (int i = 0; i < 250; i++)
-                    {
-                        //update all kinds of values
+                    //update all kinds of values
 
-                        int vertexIndex = rand.Next(2, points.PointCount) * 8;
-                        points.RemovePoint(vertexIndex);
+                    int vertexIndex = ((int)(Rand.Rand()*(points.PointCount-1)+1)) * 8;
+                    points.RemovePoint(vertexIndex);
 
-                        vertexIndex = rand.Next(0, points.PointCount) * 8;
-                        points.UpdatePoint(vertexIndex,
-                            (float)rand.NextDouble() * 2 - .5f,//position1
-                            (float)rand.NextDouble() * 2 - .5f,//position2
-                            (float)rand.NextDouble(),//size1
-                            (float)rand.NextDouble(),//size2
-                            (float)rand.NextDouble(),//size3
-                            (float)rand.NextDouble() * overlap / count,//opacity1
-                            (float)rand.NextDouble() * overlap / count,//opacity2                         
-                            (float)rand.NextDouble() * overlap / count//opacity3
+                    vertexIndex = ((int)(Rand.Rand() * points.PointCount)) * 8;
+                    points.UpdatePoint(vertexIndex,
+                        Rand.Rand() * 2 - .5f,//position1
+                        Rand.Rand() * 2 - .5f,//position2
+                        Rand.Rand(),//size1
+                        Rand.Rand(),//size2
+                        Rand.Rand(),//size3
+                        Rand.Rand() * overlap / count,//opacity1
+                        Rand.Rand() * overlap / count,//opacity2                         
+                        Rand.Rand() * overlap / count//opacity3
+                    );
+
+                    vertexIndex = ((int)(Rand.Rand() * points.PointCount)) * 8;
+                    points.AddPoint(
+                        Rand.Rand() * 2 - .5f,//position1
+                        Rand.Rand() * 2 - .5f,//position2
+                        Rand.Rand(),//size1
+                        Rand.Rand(),//size2
+                        Rand.Rand(),//size3
+                        Rand.Rand() * overlap / count,//opacity1
+                        Rand.Rand() * overlap / count,//opacity2                         
+                        Rand.Rand() * overlap / count//opacity3);
+                    );
+
+
+
+                    for (int x = 0; x < 9; x++)
+                    {
+                        int lineIndex = ((int)(Rand.Rand() * ManipulatedLines.LineCount)) * 2;
+                        ManipulatedLines.RemoveLine(lineIndex);
+                        ManipulatedLines.AddLine(
+                            (int)(Rand.Rand() * points.PointCount),
+                            (int)(Rand.Rand() * points.PointCount)
                         );
-
-                        vertexIndex = rand.Next(0, points.PointCount) * 8;
-                        points.AddPoint(
-                            (float)rand.NextDouble() * 2 - .5f,//position1
-                            (float)rand.NextDouble() * 2 - .5f,//position2
-                            (float)rand.NextDouble(),//size1
-                            (float)rand.NextDouble(),//size2
-                            (float)rand.NextDouble(),//size3
-                            (float)rand.NextDouble() * overlap / count,//opacity1
-                            (float)rand.NextDouble() * overlap / count,//opacity2                         
-                            (float)rand.NextDouble() * overlap / count//opacity3);
-                        );
-
-
-
-                        for (int x = 0; x < 9; x++)
-                        {
-                            int lineIndex = rand.Next(0, ManipulatedLines.LineCount) * 2;
-                            ManipulatedLines.RemoveLine(lineIndex);
-                            ManipulatedLines.AddLine(
-                                rand.Next(0, points.PointCount),
-                                rand.Next(0, points.PointCount)
-                            );
-                        }
-                    }
-
-                    lock (RandPool)
-                    {
-                        RandPool[rand] = false;
                     }
                 }
-                catch (Exception ex)
-                {
-                    ;
-                }
-            });
-            while (!loop.IsCompleted) ;
-            //GL.BufferSubData //eventually.
+
+            }
+            catch (Exception ex)
+            {
+                ;
+            }
             GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
 
 

@@ -164,50 +164,61 @@ namespace NodeDirectedFuelMap
 
         }
         RandomHelper Rand = new RandomHelper();
+        float[] randomValues = new float[50000 * 40];
         private void UpdateLocations()
         {
             try
             {
+                int x = 0;
+                //separating for profiling
+                
+                //for (int i = 0; i < 50000; i++)
+                //    for (int j = 0; j < 40; j++)
+                //    randomValues[i * 40 + j] = 
+                Rand.Rand(randomValues);
+
                 for (int i = 0; i < 50000; i++)
                 {
+
+                    //next cache all the random values first. then use them. so that we can profile. i bet the slow part is actually the calls to pointcount. its a math operation we're doing constantly.
                     //update all kinds of values
 
-                    int vertexIndex = ((int)(Rand.Rand()*(points.PointCount-1)+1)) * 8;
+                    int vertexIndex = ((int)(randomValues[x++]*(points.PointCount-1)+1)) * 8;
                     points.RemovePoint(vertexIndex);
 
-                    vertexIndex = ((int)(Rand.Rand() * points.PointCount)) * 8;
+                    vertexIndex = ((int)(randomValues[x++] * points.PointCount)) * 8;
                     points.UpdatePoint(vertexIndex,
-                        Rand.Rand() * 2 - .5f,//position1
-                        Rand.Rand() * 2 - .5f,//position2
-                        Rand.Rand(),//size1
-                        Rand.Rand(),//size2
-                        Rand.Rand(),//size3
-                        Rand.Rand() * overlap / count,//opacity1
-                        Rand.Rand() * overlap / count,//opacity2                         
-                        Rand.Rand() * overlap / count//opacity3
+                        randomValues[x++] * 2 - .5f,//position1
+                        randomValues[x++] * 2 - .5f,//position2
+                        randomValues[x++],//size1
+                        randomValues[x++],//size2
+                        randomValues[x++],//size3
+                        randomValues[x++] * overlap / count,//opacity1
+                        randomValues[x++] * overlap / count,//opacity2                         
+                        randomValues[x++] * overlap / count//opacity3
                     );
 
-                    vertexIndex = ((int)(Rand.Rand() * points.PointCount)) * 8;
+                    vertexIndex = ((int)(randomValues[x++] * points.PointCount)) * 8;
                     points.AddPoint(
-                        Rand.Rand() * 2 - .5f,//position1
-                        Rand.Rand() * 2 - .5f,//position2
-                        Rand.Rand(),//size1
-                        Rand.Rand(),//size2
-                        Rand.Rand(),//size3
-                        Rand.Rand() * overlap / count,//opacity1
-                        Rand.Rand() * overlap / count,//opacity2                         
-                        Rand.Rand() * overlap / count//opacity3);
+                        randomValues[x++] * 2 - .5f,//position1
+                        randomValues[x++] * 2 - .5f,//position2
+                        randomValues[x++],//size1
+                        randomValues[x++],//size2
+                        randomValues[x++],//size3
+                        randomValues[x++] * overlap / count,//opacity1
+                        randomValues[x++] * overlap / count,//opacity2                         
+                        randomValues[x++] * overlap / count//opacity3);
                     );
 
 
 
-                    for (int x = 0; x < 9; x++)
+                    for (int l = 0; l < 9; l++)
                     {
-                        int lineIndex = ((int)(Rand.Rand() * ManipulatedLines.LineCount)) * 2;
+                        int lineIndex = ((int)(randomValues[l++] * ManipulatedLines.LineCount)) * 2;
                         ManipulatedLines.RemoveLine(lineIndex);
                         ManipulatedLines.AddLine(
-                            (int)(Rand.Rand() * points.PointCount),
-                            (int)(Rand.Rand() * points.PointCount)
+                            (int)(randomValues[l++] * points.PointCount),
+                            (int)(randomValues[l++] * points.PointCount)
                         );
                     }
                 }

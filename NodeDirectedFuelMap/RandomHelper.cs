@@ -1,16 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace NodeDirectedFuelMap
 {
     public class RandomHelper
     {
-        private byte[] fbuffer = new byte[sizeof(UInt32)];
+        int bufindex = 0;
+        private byte[] fbuffer = new byte[sizeof(UInt32)*10000];//random decently large number
         public float Rand()
         {
-            FillBuffer(fbuffer, 0, fbuffer.Length);
-            return BitConverter.ToUInt32(fbuffer, 0)/(float)UInt32.MaxValue;
+            FillBuffer(fbuffer, 0, sizeof(UInt32));
+            return BitConverter.ToUInt32(fbuffer, bufindex++)/(float)UInt32.MaxValue;
+        }
+
+        public unsafe void Rand(float[] randomValues)
+        {
+            var fs = new Span<float>(randomValues);
+            var bs = MemoryMarshal.Cast<float, byte>(fs);
+            var us = MemoryMarshal.Cast<byte, UInt32>(bs);
+
+            FillBuffer(bs, 0, bs.Length);
+            for (int i = 0; i < us.Length; i++)
+                fs[i] = us[i] / (float)UInt32.MaxValue;
         }
         private ulong SplitMix64(ulong? nseed = null)
         {
@@ -39,7 +52,7 @@ namespace NodeDirectedFuelMap
 
         }
         private uint _x, _y, _z, _w;
-        private unsafe void FillBuffer(byte[] buf, int offset, int offsetEnd)
+        private unsafe void FillBuffer(Span<byte> buf, int offset, int offsetEnd)
         {
             uint x = _x, y = _y, z = _z, w = _w; // copy the state into locals temporarily
             fixed (byte* pbytes = buf)
@@ -59,6 +72,8 @@ namespace NodeDirectedFuelMap
                 }
             }
             _x = x; _y = y; _z = z; _w = w;
+
+            bufindex = 0;
         }
     }
 }

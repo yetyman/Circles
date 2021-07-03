@@ -8,25 +8,13 @@ namespace NodeDirectedFuelMap
     {
         public void Reinforce(int index, int force)
         {
-            var ilock = PointLocks.GetOne(index);
-            lock (ilock)
-            {
-                points[ilock.pointIndex + 2] += (float)Math.Pow((1 - points[ilock.pointIndex + 2]) / 3d, 2d);
-                points[ilock.pointIndex + 3] += (float)Math.Pow((1 - points[ilock.pointIndex + 3]) / 3d, 2d);
-
-                PointLocks.ReleaseOne(ilock);
-            }
+                points[index + 2] += (float)Math.Pow((1 - points[index + 2]) / 3d, 2d);
+                points[index + 3] += (float)Math.Pow((1 - points[index + 3]) / 3d, 2d);
         }
         public void Fade(int index, int force)
         {
-            var ilock = PointLocks.GetOne(index);
-            lock (ilock)
-            {
-                points[ilock.pointIndex + 2] -= (float)Math.Pow((1 - points[ilock.pointIndex + 2]) / 3d, 2d);
-                points[ilock.pointIndex + 3] -= (float)Math.Pow((1 - points[ilock.pointIndex + 3]) / 3d, 2d);
-
-                PointLocks.ReleaseOne(ilock);
-            }
+                points[index + 2] -= (float)Math.Pow((1 - points[index + 2]) / 3d, 2d);
+                points[index + 3] -= (float)Math.Pow((1 - points[index + 3]) / 3d, 2d);
         }
     }
 }

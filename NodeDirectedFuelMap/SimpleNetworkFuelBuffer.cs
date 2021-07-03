@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static NodeDirectedFuelMap.ManipulatePoints;
 
 namespace NodeDirectedFuelMap
 {
@@ -45,7 +46,7 @@ namespace NodeDirectedFuelMap
 
         public SimpleNetworkFuelBuffer(int width, int height, string title) : base(width, height, title)
         {
-            points.Allocate(count*10);
+            points.Allocate(count*100);
             ManipulatedLines.Allocate(count*9);
         }
 
@@ -164,7 +165,7 @@ namespace NodeDirectedFuelMap
 
         }
         RandomHelper Rand = new RandomHelper();
-        float[] randomValues = new float[50000 * 40];
+        float[] randomValues = new float[50000 * 58];
         private void UpdateLocations()
         {
             try
@@ -177,14 +178,37 @@ namespace NodeDirectedFuelMap
                 //    randomValues[i * 40 + j] = 
                 Rand.Rand(randomValues);
 
+                int vertexIndex = 0;
+                int unusedNeuronIndex = 0;
+
+                for (int i = 0; i < 2; i++)
+                {
+
+                    vertexIndex = ((int)(randomValues[x++] * (points.PointCount - 1) + 1)) * 8;
+                    points.RemovePoint(vertexIndex);
+                    
+                    vertexIndex = ((int)(randomValues[x++] * points.PointCount)) * 8;
+                    points.AddPoint(
+                        randomValues[x++] * 2 - .5f,//position1
+                        randomValues[x++] * 2 - .5f,//position2
+                        randomValues[x++],//size1
+                        randomValues[x++],//size2
+                        randomValues[x++],//size3
+                        randomValues[x++] * overlap / count,//opacity1
+                        randomValues[x++] * overlap / count,//opacity2                         
+                        randomValues[x++] * overlap / count//opacity3);
+                    );
+
+                }
+
                 for (int i = 0; i < 50000; i++)
                 {
 
                     //next cache all the random values first. then use them. so that we can profile. i bet the slow part is actually the calls to pointcount. its a math operation we're doing constantly.
                     //update all kinds of values
 
-                    int vertexIndex = ((int)(randomValues[x++]*(points.PointCount-1)+1)) * 8;
-                    points.RemovePoint(vertexIndex);
+                    vertexIndex = ((int)(randomValues[x++]*(points.PointCount-1)+1)) * 8;
+                    points.DeactivatePoint(vertexIndex);
 
                     vertexIndex = ((int)(randomValues[x++] * points.PointCount)) * 8;
                     points.UpdatePoint(vertexIndex,
@@ -198,20 +222,9 @@ namespace NodeDirectedFuelMap
                         randomValues[x++] * overlap / count//opacity3
                     );
 
-                    vertexIndex = ((int)(randomValues[x++] * points.PointCount)) * 8;
-                    points.AddPoint(
-                        randomValues[x++] * 2 - .5f,//position1
-                        randomValues[x++] * 2 - .5f,//position2
-                        randomValues[x++],//size1
-                        randomValues[x++],//size2
-                        randomValues[x++],//size3
-                        randomValues[x++] * overlap / count,//opacity1
-                        randomValues[x++] * overlap / count,//opacity2                         
-                        randomValues[x++] * overlap / count//opacity3);
-                    );
-
-
-
+                    unusedNeuronIndex = (int)(randomValues[x++] * points.InactiveNeurons.Keys.Count);
+                    points.ActivatePoint((Neuron)points.InactiveNeurons[unusedNeuronIndex]);
+                    
                     for (int l = 0; l < 9; l++)
                     {
                         int lineIndex = ((int)(randomValues[l++] * ManipulatedLines.LineCount)) * 2;
@@ -284,6 +297,7 @@ namespace NodeDirectedFuelMap
 
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
+            Console.WriteLine($"Frame time: {args.Time * 1000:0.000} ms"); 
             UpdateLocations();
             base.OnUpdateFrame(args);
         }

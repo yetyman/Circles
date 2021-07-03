@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -16,7 +17,7 @@ namespace NodeDirectedFuelMap
         private const float circleScale = half;
 
         public float[] points;
-        public Neuron[] Neurons;
+        public Neuron[] ActiveNeurons;
         public int firstOpenSpace = 0;
         public object firstOpenLock = new object();
 
@@ -49,7 +50,7 @@ namespace NodeDirectedFuelMap
         public void Allocate(int maxPointCount)
         {
             var maxUnusedCount = maxPointCount;
-            var maxActiveCount = maxUnusedCount / 10;
+            var maxActiveCount = maxUnusedCount / 100;
 
             lock (firstOpenLock)
             {
@@ -57,8 +58,11 @@ namespace NodeDirectedFuelMap
                 var actualLength = cornerSpace + maxActiveCount * pointSize;
 
                 points = new float[actualLength];
-                Neurons = new Neuron[actualLength];//empty pointers in the array are fine. they cost a lot less than translation math for every change for every frame
-                unusedNeurons.EnsureCapacity(maxUnusedCount);
+                ActiveNeurons = new Neuron[actualLength];//empty pointers in the array are fine. they cost a lot less than translation math for every change for every frame
+                for (int i = 0; i < maxUnusedCount; i++)
+                    NeuronPool.Push(new Neuron() { UniqueId = NeuronIDs++ });
+
+                InactiveNeurons = new OrderedDictionary(maxUnusedCount);
 
                 //copy corners to buffered data. probably static, but we'll see
                 for (int i = 0; i < cornerSpace; i++)
@@ -102,21 +106,22 @@ namespace NodeDirectedFuelMap
         public void MoveNeuronToUnused(Neuron neuron)
         {
             neuron.pointIndex = 0;
-            lock (unusedNeurons)
-                unusedNeurons.Add(neuron);
+            lock (InactiveNeurons)
+                InactiveNeurons.Add(neuron, neuron);
         }
         public void MoveNeuronToActive(Neuron neuron, int index)
         {
-            lock (unusedNeurons)
-                unusedNeurons.Remove(neuron);
+            lock (InactiveNeurons)
+                InactiveNeurons.Remove(neuron);
 
             lock (neuron)
             {
                 neuron.pointIndex = index;
-                Neurons[index] = neuron;
+                ActiveNeurons[index] = neuron;
             }
         }
         private static int NeuronIDs = 0;
+        private Stack<Neuron> NeuronPool = new Stack<Neuron>();
         public Neuron CreateNeuron(float x, float y, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
 
@@ -127,39 +132,38 @@ namespace NodeDirectedFuelMap
             if (!o2.HasValue) o2 = DefaultFuelIntensity;
             if (!o3.HasValue) o3 = DefaultNodeCreationIntensity;
 
-            //for now just create, soon pool instead
-            var n = new Neuron()
-            {
-                X = x,
-                Y = y,
-                ImpulseRadius = r1.Value,
-                FuelRadius = r2.Value,
-                NodeCreationRadius = r3.Value,
-                ImpulseIntensity = o1.Value,
-                FuelIntensity = o2.Value,
-                NodeCreationIntensity = o3.Value,
+            Neuron n;
+            if (NeuronPool.Any())
+                n = NeuronPool.Pop();
+            else n = new Neuron() { UniqueId = NeuronIDs++ };
 
-                UniqueId = NeuronIDs++
-            };
+            n.X = x;
+            n.Y = y;
+            n.ImpulseRadius = r1.Value;
+            n.FuelRadius = r2.Value;
+            n.NodeCreationRadius = r3.Value;
+            n.ImpulseIntensity = o1.Value;
+            n.FuelIntensity = o2.Value;
+            n.NodeCreationIntensity = o3.Value;
 
             return n;
         }
         public void DeleteNeuron(Neuron n)
         {
-            unusedNeurons.Remove(n);
+            InactiveNeurons.Remove(n);
         }
         public void MoveNeuron(int from, int to)
         {
             Neuron n = null;
 
-            n = Neurons[from];
-            Neurons[from] = null;//whenever this location is nulled, the data array ought to also be null at this location.
+            n = ActiveNeurons[from];
+            ActiveNeurons[from] = null;//whenever this location is nulled, the data array ought to also be null at this location.
                 
-            Neurons[to] = n;
-            Neurons[to].pointIndex = to;
+            ActiveNeurons[to] = n;
+            ActiveNeurons[to].pointIndex = to;
         }
 
-        public HashSet<Neuron> unusedNeurons = new HashSet<Neuron>();
+        public OrderedDictionary InactiveNeurons;
         /// <summary>
         /// just wrapping for reference passing
         /// </summary>
@@ -177,167 +181,6 @@ namespace NodeDirectedFuelMap
                 return obj is PointIndex p && p.pointIndex == pointIndex || obj is int i && i + cornerSpace == pointIndex;
             }
         }
-
-        public PointLockPool PointLocks = new PointLockPool();
-        public class PointLockPool
-        {
-            public Dictionary<int, PointIndex> pointLocks = new Dictionary<int, PointIndex>();
-            List<PointIndex> PointPool = new List<PointIndex>();
-
-            public PointLockPool()
-            {
-            }
-
-            public PointIndex GetOne(int index)
-            {
-                PointIndex p = null;
-                try
-                {
-                    //Console.WriteLine(Thread.CurrentThread.Name + " finding point lock for index " + index);
-                    bool b = false;
-                    try
-                    {
-                        Monitor.Enter(pointLocks);
-                        //Console.WriteLine(Thread.CurrentThread.Name + " locked pointlocks 1");
-                        b = pointLocks.ContainsKey(index + cornerSpace);
-                        if (b)
-                        {
-                            p = pointLocks[index + cornerSpace];
-                            Monitor.Enter(p);
-                            //Console.WriteLine(Thread.CurrentThread.Name + " point lock found for index " + index);
-                            p.references++;
-                        }
-
-
-                    }
-                    catch (Exception ex)
-                    {
-                        //Console.WriteLine("GetOne has failed for index "+index);
-                        //Console.WriteLine(ex);
-                    }
-                    finally
-                    {
-                        Monitor.Exit(pointLocks);
-                    }
-                    //Console.WriteLine(Thread.CurrentThread.Name + " released pointlocks 1");
-
-                    if (!b)
-                    {
-                        //Console.WriteLine(Thread.CurrentThread.Name + " point lock not found for index " + index);
-                        lock (PointPool)
-                        {
-                            //Console.WriteLine(Thread.CurrentThread.Name + " point pool not locked. obtaining lock");
-                            p = PointPool.FirstOrDefault(x => x.references == 0 && x.pointIndex == -1);
-                            if (p == null)
-                            {
-                                //Console.WriteLine(Thread.CurrentThread.Name + " pooled point lock not found. creating new one");
-                                PointPool.Add(p = new PointIndex() { references = 1 });
-                                Monitor.Enter(p);
-
-                            }
-                            else
-                            {
-                                Monitor.Enter(p);
-                                p.references = 1;//set reference count before point pool releases.
-                                //Console.WriteLine(Thread.CurrentThread.Name + " pooled point lock found. ");
-                            }
-                        }
-
-                        p.pointIndex = index + cornerSpace;
-                        //Console.WriteLine(Thread.CurrentThread.Name + " about to lock pointlocks");
-                        try
-                        {
-                            Monitor.Enter(pointLocks);
-                            //Console.WriteLine(Thread.CurrentThread.Name + " adding new point lock to active list. index " + index);
-                            if (pointLocks.ContainsKey(p.pointIndex))
-                            {
-                                //Console.WriteLine(Thread.CurrentThread.Name + " apparently two threads are using the same point index " + index);
-                                p = pointLocks[p.pointIndex];
-                                p.references++;
-                            }
-                            else
-                                pointLocks.Add(p.pointIndex, p);
-                        }
-                        catch (Exception ex)
-                        {
-                            //Console.WriteLine("GetOne has failed for index "+index);
-                            //Console.WriteLine(ex);
-                        }
-                        finally
-                        {
-                            Monitor.Exit(pointLocks);
-                        }
-
-                    }
-                }
-                catch (Exception ex)
-                {
-                    //Console.WriteLine("GetOne has failed for index "+index);
-                    //Console.WriteLine(ex);
-                }
-                finally
-                {
-                    if (Monitor.IsEntered(p))
-                        Monitor.Exit(p);
-                }
-
-                if (p == null)
-                    ;
-                else if (p.pointIndex == -1)
-                    ;
-                return p;
-            }
-
-            public void ReleaseOne(PointIndex p)
-            {
-                //Console.WriteLine(Thread.CurrentThread.Name + " pointlocks about to be locked 1 for index " + p.pointIndex);
-                try
-                {
-                    Monitor.Enter(pointLocks);
-                    //Console.WriteLine(Thread.CurrentThread.Name + " pointlocks lock obtained 1. removing index " + p.pointIndex);
-                    //Console.WriteLine(Thread.CurrentThread.Name + " point about to be locked 1 for index " + p.pointIndex);
-                    try
-                    {
-                        Monitor.Enter(p);
-                        //Console.WriteLine(Thread.CurrentThread.Name + " point lock obtained 1 for index " + p.pointIndex);
-                        p.references--;
-                        if (p.references == 0)
-                        {
-                            if (!pointLocks.Remove(p.pointIndex))
-                            {
-                                throw new Exception("Wut");
-                            }
-                            p.pointIndex = -1;
-                            p.references = 0;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        //Console.WriteLine("GetOne has failed for index " + p?.pointIndex ?? "null");
-                        //Console.WriteLine(ex);
-                    }
-                    finally
-                    {
-                        if (p != null)
-                            Monitor.Exit(p);
-                    }
-                    //Console.WriteLine(Thread.CurrentThread.Name + " point lock released");
-                }
-                catch (Exception ex)
-                {
-                    //Console.WriteLine("GetOne has failed for index "+index);
-                    //Console.WriteLine(ex);
-                }
-                finally
-                {
-                    Monitor.Exit(pointLocks);
-                }
-                //Console.WriteLine(Thread.CurrentThread.Name + " pointlocks lock released 1");
-
-
-            }
-        }
-
 
         /// <summary>
         /// a few a frame, relatively rare, but no where near as rare as removes
@@ -422,7 +265,7 @@ namespace NodeDirectedFuelMap
             points[index + 6] = 0;//opacity2
             points[index + 7] = 0;//opacity3
 
-            DeleteNeuron(Neurons[index]);
+            DeleteNeuron(ActiveNeurons[index]);
 
             //consolidate into continuous memory
 
@@ -473,7 +316,7 @@ namespace NodeDirectedFuelMap
             points[index + 6] = 0;//opacity2
             points[index + 7] = 0;//opacity3
 
-            MoveNeuronToUnused(Neurons[index]);
+            MoveNeuronToUnused(ActiveNeurons[index]);
 
             //consolidate into continuous memory
 
@@ -520,14 +363,14 @@ namespace NodeDirectedFuelMap
             if (o2.HasValue) points[index + 6] = o2.Value;
             if (o3.HasValue) points[index + 7] = o3.Value;
 
-            if (x.HasValue) Neurons[index].X = x.Value;
-            if (y.HasValue) Neurons[index].Y = y.Value;
-            if (r1.HasValue) Neurons[index].ImpulseRadius = r1.Value;
-            if (r2.HasValue) Neurons[index].FuelRadius = r2.Value;
-            if (r3.HasValue) Neurons[index].NodeCreationRadius = r3.Value;
-            if (o1.HasValue) Neurons[index].ImpulseIntensity = o1.Value;
-            if (o2.HasValue) Neurons[index].FuelIntensity = o2.Value;
-            if (o3.HasValue) Neurons[index].NodeCreationIntensity = o3.Value;
+            if (x.HasValue) ActiveNeurons[index].X = x.Value;
+            if (y.HasValue) ActiveNeurons[index].Y = y.Value;
+            if (r1.HasValue) ActiveNeurons[index].ImpulseRadius = r1.Value;
+            if (r2.HasValue) ActiveNeurons[index].FuelRadius = r2.Value;
+            if (r3.HasValue) ActiveNeurons[index].NodeCreationRadius = r3.Value;
+            if (o1.HasValue) ActiveNeurons[index].ImpulseIntensity = o1.Value;
+            if (o2.HasValue) ActiveNeurons[index].FuelIntensity = o2.Value;
+            if (o3.HasValue) ActiveNeurons[index].NodeCreationIntensity = o3.Value;
 
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
@@ -543,14 +386,14 @@ namespace NodeDirectedFuelMap
             if (o2.HasValue) points[index + 6] += o2.Value;
             if (o3.HasValue) points[index + 7] += o3.Value;
 
-            if (x.HasValue) Neurons[index].X += x.Value;
-            if (y.HasValue) Neurons[index].Y += y.Value;
-            if (r1.HasValue) Neurons[index].ImpulseRadius += r1.Value;
-            if (r2.HasValue) Neurons[index].FuelRadius += r2.Value;
-            if (r3.HasValue) Neurons[index].NodeCreationRadius += r3.Value;
-            if (o1.HasValue) Neurons[index].ImpulseIntensity += o1.Value;
-            if (o2.HasValue) Neurons[index].FuelIntensity += o2.Value;
-            if (o3.HasValue) Neurons[index].NodeCreationIntensity += o3.Value;
+            if (x.HasValue) ActiveNeurons[index].X += x.Value;
+            if (y.HasValue) ActiveNeurons[index].Y += y.Value;
+            if (r1.HasValue) ActiveNeurons[index].ImpulseRadius += r1.Value;
+            if (r2.HasValue) ActiveNeurons[index].FuelRadius += r2.Value;
+            if (r3.HasValue) ActiveNeurons[index].NodeCreationRadius += r3.Value;
+            if (o1.HasValue) ActiveNeurons[index].ImpulseIntensity += o1.Value;
+            if (o2.HasValue) ActiveNeurons[index].FuelIntensity += o2.Value;
+            if (o3.HasValue) ActiveNeurons[index].NodeCreationIntensity += o3.Value;
 
         }
 

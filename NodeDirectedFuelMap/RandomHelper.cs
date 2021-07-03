@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -7,23 +8,27 @@ namespace NodeDirectedFuelMap
 {
     public class RandomHelper
     {
-        int bufindex = 0;
-        private byte[] fbuffer = new byte[sizeof(UInt32)*10000];//random decently large number
+        private byte[] fbuffer = new byte[sizeof(UInt32)];//random decently large number
+        private float inverseIntMax = 1 / (float)UInt32.MaxValue;
         public float Rand()
         {
             FillBuffer(fbuffer, 0, sizeof(UInt32));
-            return BitConverter.ToUInt32(fbuffer, bufindex++)/(float)UInt32.MaxValue;
+            return BitConverter.ToUInt32(fbuffer, 0)/(float)UInt32.MaxValue;
         }
 
-        public unsafe void Rand(float[] randomValues)
+
+        public void Rand(float[] randomValues)
         {
             var fs = new Span<float>(randomValues);
             var bs = MemoryMarshal.Cast<float, byte>(fs);
             var us = MemoryMarshal.Cast<byte, UInt32>(bs);
 
             FillBuffer(bs, 0, bs.Length);
-            for (int i = 0; i < us.Length; i++)
-                fs[i] = us[i] / (float)UInt32.MaxValue;
+
+            int i = 0;
+            int l = us.Length;
+            while (i < l)
+                fs[i] = us[i++] * inverseIntMax;
         }
         private ulong SplitMix64(ulong? nseed = null)
         {
@@ -73,7 +78,6 @@ namespace NodeDirectedFuelMap
             }
             _x = x; _y = y; _z = z; _w = w;
 
-            bufindex = 0;
         }
     }
 }

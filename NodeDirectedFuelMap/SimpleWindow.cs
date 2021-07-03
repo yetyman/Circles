@@ -23,12 +23,12 @@ namespace NodeDirectedFuelMap
                       Title = title 
                   }) {
 
-            setupDebugOutput();
+            //setupDebugOutput();
 
         }
         protected override void OnClosing(CancelEventArgs e)
         {
-            openGLDebugCallback(DebugSource.DontCare, DebugType.DontCare, 0, DebugSeverity.DontCare, 0, IntPtr.Zero, IntPtr.Zero);
+            //openGLDebugCallback(DebugSource.DontCare, DebugType.DontCare, 0, DebugSeverity.DontCare, 0, IntPtr.Zero, IntPtr.Zero);
             base.OnClosing(e);
         }
         protected override void OnLoad()

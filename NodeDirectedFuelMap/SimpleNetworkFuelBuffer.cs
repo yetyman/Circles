@@ -164,7 +164,7 @@ namespace NodeDirectedFuelMap
             }
 
         }
-        RandomHelper Rand = new RandomHelper();
+        RandomHelper86 Rand = new RandomHelper86();
         float[] randomValues = new float[50000 * 58];
         private void UpdateLocations()
         {

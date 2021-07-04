@@ -222,7 +222,7 @@ namespace NodeDirectedFuelMap
                         randomValues[x++] * overlap / count//opacity3
                     );
 
-                    unusedNeuronIndex = (int)(randomValues[x++] * points.InactiveNeurons.Keys.Count);
+                    unusedNeuronIndex = (int)(randomValues[x++] * points.InactiveNeurons.Keys.Count *.999999999999);
                     points.ActivatePoint((Neuron)points.InactiveNeurons[unusedNeuronIndex]);
                     
                     for (int l = 0; l < 9; l++)

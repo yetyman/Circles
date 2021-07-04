@@ -3,24 +3,63 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 
 namespace NodeDirectedFuelMap
 {
     public class RandomHelper
     {
-        private byte[] fbuffer = new byte[sizeof(UInt32)];//random decently large number
+        private float[] fbuffer2 = null;
+        private float[] fbuffer1 = null;
+
+        private byte[] bbuffer = new byte[sizeof(UInt32)];
+        bool two = false;
+        bool requesting = false;
+
         private float inverseIntMax = 1 / (float)UInt32.MaxValue;
         public float Rand()
         {
-            FillBuffer(fbuffer, 0, sizeof(UInt32));
-            return BitConverter.ToUInt32(fbuffer, 0)/(float)UInt32.MaxValue;
+            FillBuffer(bbuffer, 0, sizeof(UInt32));
+            return BitConverter.ToUInt32(bbuffer, 0)/(float)UInt32.MaxValue;
         }
 
-
+        ManualResetEventSlim backBufferFill = new ManualResetEventSlim(true);
+        ManualResetEventSlim fillABuffer = new ManualResetEventSlim(true);
         public void Rand(float[] randomValues)
         {
-            var fs = new Span<float>(randomValues);
-            var bs = MemoryMarshal.Cast<float, byte>(fs);
+            if ((fbuffer1?.Length ?? 0) < randomValues.Length)
+                fbuffer1 = new float[randomValues.Length];
+            if ((fbuffer2?.Length ?? 0) < randomValues.Length)
+                fbuffer2 = new float[randomValues.Length];
+
+            backBufferFill.Wait();//wait until one of the buffers is ready for use.
+            backBufferFill.Reset();
+            fillABuffer.Set();
+
+            if (two)
+                fbuffer1.CopyTo(randomValues, 0);
+            else
+                fbuffer2.CopyTo(randomValues, 0);
+        }
+        public float[] Rand(int length )
+        {
+            if ((fbuffer1?.Length ?? 0) < length)
+                fbuffer1 = new float[length];
+            if ((fbuffer2?.Length ?? 0) < length)
+                fbuffer2 = new float[length];
+
+            backBufferFill.Wait();//wait until one of the buffers is ready for use.
+            backBufferFill.Reset();
+            fillABuffer.Set();
+
+            if (two)
+                return fbuffer1; //.CopyTo(randomValues, 0);
+            else
+                return fbuffer2; //.CopyTo(randomValues, 0);
+        }
+        public void BgRand(Span<float> randomValues)
+        {
+            var bs = MemoryMarshal.Cast<float, byte>(randomValues);
             var us = MemoryMarshal.Cast<byte, UInt32>(bs);
 
             FillBuffer(bs, 0, bs.Length);
@@ -28,7 +67,21 @@ namespace NodeDirectedFuelMap
             int i = 0;
             int l = us.Length;
             while (i < l)
-                fs[i] = us[i++] * inverseIntMax;
+                randomValues[i] = us[i++] * inverseIntMax;
+        }
+        private void bgGen()
+        {
+            while (true)
+            {
+                fillABuffer.Wait();
+                fillABuffer.Reset();
+                if (two)
+                    BgRand(fbuffer2);
+                else
+                    BgRand(fbuffer1);
+                two = !two;
+                backBufferFill.Set();
+            }
         }
         private ulong SplitMix64(ulong? nseed = null)
         {
@@ -42,6 +95,8 @@ namespace NodeDirectedFuelMap
         public RandomHelper(ulong? seed = null)
         {
             InitXorShift(seed);
+            Thread devotedWorkerThread = new Thread(bgGen);
+            devotedWorkerThread.Start();
         }
         private void InitXorShift(ulong? seed = null)
         {

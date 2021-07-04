@@ -173,10 +173,8 @@ namespace NodeDirectedFuelMap
                 int x = 0;
                 //separating for profiling
                 
-                //for (int i = 0; i < 50000; i++)
-                //    for (int j = 0; j < 40; j++)
-                //    randomValues[i * 40 + j] = 
-                Rand.Rand(randomValues);
+                randomValues = Rand.Rand(50000 * 58);
+                //Rand.RandDirect(randomValues);//booo
 
                 int vertexIndex = 0;
                 int unusedNeuronIndex = 0;

@@ -13,18 +13,19 @@ namespace NodeDirectedFuelMap
         private float[] fbuffer1 = null;
 
         private byte[] bbuffer = new byte[sizeof(UInt32)];
-        bool two = false;
-        bool requesting = false;
 
-        private float inverseIntMax = 1 / (float)UInt32.MaxValue;
+        private float inverseIntMax = 1 / (float)Int32.MaxValue;
+
+
+        ManualResetEventSlim backBufferFill = new ManualResetEventSlim(true);
+        ManualResetEventSlim fillABuffer = new ManualResetEventSlim(true);
+        bool two = false;
         public float Rand()
         {
             FillBuffer(bbuffer, 0, sizeof(UInt32));
             return BitConverter.ToUInt32(bbuffer, 0)/(float)UInt32.MaxValue;
         }
 
-        ManualResetEventSlim backBufferFill = new ManualResetEventSlim(true);
-        ManualResetEventSlim fillABuffer = new ManualResetEventSlim(true);
         public void Rand(float[] randomValues)
         {
             if ((fbuffer1?.Length ?? 0) < randomValues.Length)
@@ -41,7 +42,20 @@ namespace NodeDirectedFuelMap
             else
                 fbuffer2.CopyTo(randomValues, 0);
         }
-        public float[] Rand(int length )
+        public void RandDirect(float[] randomValues)
+        {
+            var fs = new Span<float>(randomValues);
+            var bs = MemoryMarshal.Cast<float, byte>(fs);
+            var ns = MemoryMarshal.Cast<byte, int>(bs);
+
+            FillBuffer(bs, 0, bs.Length);
+
+            int i = 0;
+            int l = ns.Length;
+            while (i < l)
+                randomValues[i] = (ns[i++] & 0x7F_FF_FF_FF) * inverseIntMax;
+        }
+        public float[] Rand(int length)
         {
             if ((fbuffer1?.Length ?? 0) < length)
                 fbuffer1 = new float[length];
@@ -60,14 +74,14 @@ namespace NodeDirectedFuelMap
         public void BgRand(Span<float> randomValues)
         {
             var bs = MemoryMarshal.Cast<float, byte>(randomValues);
-            var us = MemoryMarshal.Cast<byte, UInt32>(bs);
+            var ns = MemoryMarshal.Cast<byte, int>(bs);
 
             FillBuffer(bs, 0, bs.Length);
 
             int i = 0;
-            int l = us.Length;
+            int l = ns.Length;
             while (i < l)
-                randomValues[i] = us[i++] * inverseIntMax;
+                randomValues[i] = (ns[i++] & 0x7F_FF_FF_FF) * inverseIntMax;
         }
         private void bgGen()
         {

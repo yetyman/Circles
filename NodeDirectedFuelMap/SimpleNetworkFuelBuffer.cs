@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -166,25 +167,31 @@ namespace NodeDirectedFuelMap
         }
         RandomHelper86 Rand = new RandomHelper86();
         float[] randomValues = new float[50000 * 58];
+        int[] randomInts = new int[4+29*50000];
+
         private void UpdateLocations()
         {
             try
             {
                 int x = 0;
+
                 //separating for profiling
                 
                 randomValues = Rand.Rand(50000 * 58);
                 //Rand.RandDirect(randomValues);//booo
+                //hi me. time to look at optimizing the point CRUD functions
+
 
                 int vertexIndex = 0;
-                int unusedNeuronIndex = 0;
 
                 for (int i = 0; i < 2; i++)
                 {
 
+
+                    //cause inactive neurons to slowly fill up
                     vertexIndex = ((int)(randomValues[x++] * (points.PointCount - 1) + 1)) * 8;
-                    points.RemovePoint(vertexIndex);
-                    
+                    points.DeactivatePoint(vertexIndex);
+
                     vertexIndex = ((int)(randomValues[x++] * points.PointCount)) * 8;
                     points.AddPoint(
                         randomValues[x++] * 2 - .5f,//position1
@@ -198,6 +205,13 @@ namespace NodeDirectedFuelMap
                     );
 
                 }
+
+                //if (points.InactiveNeurons.Count > 0)
+                //{
+                //    var neuronindex = (int)(randomValues[x++] * (points.InactiveNeurons.Count - 1));
+                //    points.DeleteNeuron((Neuron)points.InactiveNeurons[neuronindex]);
+                //}
+
 
                 for (int i = 0; i < 50000; i++)
                 {
@@ -220,9 +234,13 @@ namespace NodeDirectedFuelMap
                         randomValues[x++] * overlap / count//opacity3
                     );
 
-                    unusedNeuronIndex = (int)(randomValues[x++] * points.InactiveNeurons.Keys.Count *.999999999999);
-                    points.ActivatePoint((Neuron)points.InactiveNeurons[unusedNeuronIndex]);
-                    
+
+                    if (points.InactiveNeurons.Count > 0)
+                    {
+                        //unusedNeuronIndex = (int)(randomValues[x++] * points.InactiveNeurons.Keys.Count * .999999999999);
+                        points.ActivatePoint(points.InactiveNeurons.First().Value);
+                    }
+
                     for (int l = 0; l < 9; l++)
                     {
                         int lineIndex = ((int)(randomValues[l++] * ManipulatedLines.LineCount)) * 2;

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
@@ -48,6 +49,7 @@ namespace NodeDirectedFuelMap
         /// <param name="o1">impulse intensity</param>
         /// <param name="o2">fuel usage intensity</param>
         /// <param name="o3">node creation intensity</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddLine(int pointIndex1, int pointIndex2)
         {
             int lp = firstOpenSpace;
@@ -62,6 +64,7 @@ namespace NodeDirectedFuelMap
         /// rare, but occasionally done. given that this is presumed rare, it might also be a good place to consolidate memory space
         /// </summary>
         /// <param name="index"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveLine(int index)
         {
             index += bufferSpace;

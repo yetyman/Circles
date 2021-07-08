@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
@@ -49,8 +50,8 @@ namespace NodeDirectedFuelMap
         /// <param name="maxPointCount"></param>
         public void Allocate(int maxPointCount)
         {
-            var maxUnusedCount = maxPointCount;
-            var maxActiveCount = maxUnusedCount / 100;
+            var maxActiveCount = maxPointCount / 100;
+            var maxUnusedCount = maxPointCount - maxActiveCount;
 
             lock (firstOpenLock)
             {
@@ -59,10 +60,10 @@ namespace NodeDirectedFuelMap
 
                 points = new float[actualLength];
                 ActiveNeurons = new Neuron[actualLength];//empty pointers in the array are fine. they cost a lot less than translation math for every change for every frame
-                for (int i = 0; i < maxUnusedCount; i++)
+                for (int i = 0; i < maxPointCount; i++)
                     NeuronPool.Push(new Neuron() { UniqueId = NeuronIDs++ });
 
-                InactiveNeurons = new OrderedDictionary(maxUnusedCount);
+                InactiveNeurons = new Dictionary<int, Neuron>(maxUnusedCount);
 
                 //copy corners to buffered data. probably static, but we'll see
                 for (int i = 0; i < cornerSpace; i++)
@@ -106,13 +107,21 @@ namespace NodeDirectedFuelMap
         public void MoveNeuronToUnused(Neuron neuron)
         {
             neuron.pointIndex = 0;
-            lock (InactiveNeurons)
-                InactiveNeurons.Add(neuron, neuron);
+            //lock (InactiveNeurons)
+
+            while (waitingOnInactiveDic) ;
+            waitingOnInactiveDic = true;
+            InactiveNeurons.Add(neuron.UniqueId, neuron);
+            waitingOnInactiveDic = false;
         }
+        bool waitingOnInactiveDic = false;
         public void MoveNeuronToActive(Neuron neuron, int index)
         {
-            lock (InactiveNeurons)
-                InactiveNeurons.Remove(neuron);
+            //lock (InactiveNeurons)
+            while (waitingOnInactiveDic) ;
+            waitingOnInactiveDic = true;
+            InactiveNeurons.Remove(neuron.UniqueId);
+            waitingOnInactiveDic = false;
 
             lock (neuron)
             {
@@ -150,7 +159,7 @@ namespace NodeDirectedFuelMap
         }
         public void DeleteNeuron(Neuron n)
         {
-            InactiveNeurons.Remove(n);
+            InactiveNeurons.Remove(n.UniqueId);
         }
         public void MoveNeuron(int from, int to)
         {
@@ -163,7 +172,7 @@ namespace NodeDirectedFuelMap
             ActiveNeurons[to].pointIndex = to;
         }
 
-        public OrderedDictionary InactiveNeurons;
+        public Dictionary<int, Neuron> InactiveNeurons;
         /// <summary>
         /// just wrapping for reference passing
         /// </summary>
@@ -193,6 +202,7 @@ namespace NodeDirectedFuelMap
         /// <param name="o1">impulse intensity</param>
         /// <param name="o2">fuel usage intensity</param>
         /// <param name="o3">node creation intensity</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddPoint(float x, float y, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
             //r3 and o3 may end up redundant, not there yet
@@ -230,6 +240,7 @@ namespace NodeDirectedFuelMap
         /// <param name="o1">impulse intensity</param>
         /// <param name="o2">fuel usage intensity</param>
         /// <param name="o3">node creation intensity</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ActivatePoint(Neuron neuron)
         {
             int lp = firstOpenSpace;
@@ -252,57 +263,17 @@ namespace NodeDirectedFuelMap
         /// rare, but occasionally done. given that this is presumed rare, it might also be a good place to consolidate memory space
         /// </summary>
         /// <param name="index"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemovePoint(int index)
         {
-            index += cornerSpace;
-
-            points[index + 0] = 0;//position1
-            points[index + 1] = 0;//position2
-            points[index + 2] = 0;//size1
-            points[index + 3] = 0;//size2
-            points[index + 4] = 0;//size3
-            points[index + 5] = 0;//opacity1
-            points[index + 6] = 0;//opacity2
-            points[index + 7] = 0;//opacity3
-
             DeleteNeuron(ActiveNeurons[index]);
-
-            //consolidate into continuous memory
-
-            int lp = firstOpenSpace - pointSize;
-            if (lp == index)
-            {
-                //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
-
-                //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
-                //fringe case but basically never
-                firstOpenSpace -= pointSize;
-                return;
-            }
-            else
-            {
-                points[index + 0] = points[lp + 0];//position1
-                points[index + 1] = points[lp + 1];//position2
-                points[index + 2] = points[lp + 2];//size1
-                points[index + 3] = points[lp + 3];//size2
-                points[index + 4] = points[lp + 4];//size3
-                points[index + 5] = points[lp + 5];//opacity1
-                points[index + 6] = points[lp + 6];//opacity2
-                points[index + 7] = points[lp + 7];//opacity3
-
-                MoveNeuron(lp, index);
-
-                //the last point has been moved back to somewhere else in memory
-                firstOpenSpace -= pointSize;
-            }
-            //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
-
         }
 
         /// <summary>
         /// incredibly common. given that this is presumed rare, it might also be a good place to consolidate memory space
         /// </summary>
         /// <param name="index"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DeactivatePoint(int index)
         {
             index += cornerSpace;
@@ -350,28 +321,28 @@ namespace NodeDirectedFuelMap
 
         }
 
-        public void UpdatePoint(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void UpdatePoint(int index, float x, float y, float r1, float r2, float r3, float o1, float o2, float o3)
         {
             index += cornerSpace;
 
-            if (x.HasValue) points[index + 0] = x.Value;
-            if (y.HasValue) points[index + 1] = y.Value;
-            if (r1.HasValue) points[index + 2] = r1.Value;
-            if (r2.HasValue) points[index + 3] = r2.Value;
-            if (r3.HasValue) points[index + 4] = r3.Value;
-            if (o1.HasValue) points[index + 5] = o1.Value;
-            if (o2.HasValue) points[index + 6] = o2.Value;
-            if (o3.HasValue) points[index + 7] = o3.Value;
+            //if (x.HasValue) points[index + 0] = ActiveNeurons[index].X = x.Value;
+            //if (y.HasValue) points[index + 1] = ActiveNeurons[index].Y = y.Value;
+            //if (r1.HasValue) points[index + 2] = ActiveNeurons[index].ImpulseRadius = r1.Value;
+            //if (r2.HasValue) points[index + 3] = ActiveNeurons[index].FuelRadius = r2.Value;
+            //if (r3.HasValue) points[index + 4] = ActiveNeurons[index].NodeCreationRadius = r3.Value;
+            //if (o1.HasValue) points[index + 5] = ActiveNeurons[index].ImpulseIntensity = o1.Value;
+            //if (o2.HasValue) points[index + 6] = ActiveNeurons[index].FuelIntensity = o2.Value;
+            //if (o3.HasValue) points[index + 7] = ActiveNeurons[index].NodeCreationIntensity = o3.Value;
 
-            if (x.HasValue) ActiveNeurons[index].X = x.Value;
-            if (y.HasValue) ActiveNeurons[index].Y = y.Value;
-            if (r1.HasValue) ActiveNeurons[index].ImpulseRadius = r1.Value;
-            if (r2.HasValue) ActiveNeurons[index].FuelRadius = r2.Value;
-            if (r3.HasValue) ActiveNeurons[index].NodeCreationRadius = r3.Value;
-            if (o1.HasValue) ActiveNeurons[index].ImpulseIntensity = o1.Value;
-            if (o2.HasValue) ActiveNeurons[index].FuelIntensity = o2.Value;
-            if (o3.HasValue) ActiveNeurons[index].NodeCreationIntensity = o3.Value;
-
+            points[index + 0] = ActiveNeurons[index].X = x;
+            points[index + 1] = ActiveNeurons[index].Y = y;
+            points[index + 2] = ActiveNeurons[index].ImpulseRadius = r1;
+            points[index + 3] = ActiveNeurons[index].FuelRadius = r2;
+            points[index + 4] = ActiveNeurons[index].NodeCreationRadius = r3;
+            points[index + 5] = ActiveNeurons[index].ImpulseIntensity = o1;
+            points[index + 6] = ActiveNeurons[index].FuelIntensity = o2;
+            points[index + 7] = ActiveNeurons[index].NodeCreationIntensity = o3;
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {

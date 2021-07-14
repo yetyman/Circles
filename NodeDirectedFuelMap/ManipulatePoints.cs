@@ -107,28 +107,26 @@ namespace NodeDirectedFuelMap
         public void MoveNeuronToUnused(Neuron neuron)
         {
             neuron.pointIndex = 0;
-            //lock (InactiveNeurons)
 
-            while (waitingOnInactiveDic) ;
-            waitingOnInactiveDic = true;
+            //while (waitingOnInactiveDic) ;
+            //waitingOnInactiveDic = true;
             InactiveNeurons.Add(neuron.UniqueId, neuron);
-            waitingOnInactiveDic = false;
+            //waitingOnInactiveDic = false;
         }
         bool waitingOnInactiveDic = false;
         public void MoveNeuronToActive(Neuron neuron, int index)
         {
-            //lock (InactiveNeurons)
             //replacing slow lock with lighter and steadier while wait
-            while (waitingOnInactiveDic) ;
-            waitingOnInactiveDic = true;
+            //while (waitingOnInactiveDic) ;
+            //waitingOnInactiveDic = true;
             InactiveNeurons.Remove(neuron.UniqueId);
-            waitingOnInactiveDic = false;
+            //waitingOnInactiveDic = false;
 
-            lock (neuron)
-            {
+            //lock (neuron)
+            //{
                 neuron.pointIndex = index;
                 ActiveNeurons[index] = neuron;
-            }
+            //}
         }
         private static int NeuronIDs = 0;
         private Stack<Neuron> NeuronPool = new Stack<Neuron>();

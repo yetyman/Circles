@@ -85,7 +85,7 @@ namespace NodeDirectedFuelMap
         public void Use()
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactor.Zero, BlendingFactor.One);
+            GL.BlendFunc(BlendingFactor.One, BlendingFactor.Zero);
             GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
@@ -95,7 +95,7 @@ namespace NodeDirectedFuelMap
             GL.ActiveTexture(TextureUnit.Texture0); //select texture unit(hardware) slot
             GL.BindTexture(TextureTarget.Texture2D, FromTexture); //set the slot to the pointer to texture in gpu memory
 
-            GL.Uniform1(FromTextureLocation, 0);
+            GL.Uniform1(FromTextureLocation, 0);//because its texture0
 
             CheckGPUErrors("Error setting texture:");
         }

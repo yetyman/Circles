@@ -35,8 +35,6 @@ namespace NodeDirectedFuelMap
         SomeZeroingShader FuelZeroingShader;//take pool, set negatives to zero
 
         MultiViewShader texShader;
-
-
        
         ManipulatePoints points = new ManipulatePoints();
         ManipulateLines ManipulatedLines = new ManipulateLines();
@@ -51,12 +49,8 @@ namespace NodeDirectedFuelMap
             ManipulatedLines.Allocate(count*9);
         }
 
-        private int threadNo = 0;
-        object lockObj = new object();
-        Dictionary<Random, bool> RandPool = new Dictionary<Random, bool>();
         static int count = 10000;
-        static float overlap = 6;
-        static float threshold = .2f;
+        static float overlap = 9f;
         static float RefuelRate = .01f;
         protected override void OnLoad()
         {
@@ -158,7 +152,7 @@ namespace NodeDirectedFuelMap
             {
                 timeStart = _timer.ElapsedMilliseconds;
 
-                UpdateLocations();
+                UpdateLocationRandomTestData();
 
                 timeEnd = _timer.ElapsedMilliseconds;
                 Thread.Sleep(Math.Max((int)(frameTime - (timeEnd - timeStart)), 0));//roughly sync updates to frame speed adjusting for this thread's processing time
@@ -167,32 +161,50 @@ namespace NodeDirectedFuelMap
         }
         RandomHelper86 Rand = new RandomHelper86();
         float[] randomValues = new float[50000 * 58];
-        int[] randomInts = new int[4+29*50000];
+        int[] randomInts = new int[2+11*50000];
 
-        private void UpdateLocations()
+        private void UpdateLocationRandomTestData()
         {
             try
             {
                 int x = 0;
-
+                int iIndex = 0;
+                int fIndex = 0;
                 //separating for profiling
                 
                 randomValues = Rand.Rand(50000 * 58);
                 //Rand.RandDirect(randomValues);//booo
                 //hi me. time to look at optimizing the point CRUD functions
 
+                //separating out all the random integer casting for profiling and optimization
+                var pointCount = points.PointCount;
+                var lineCount = ManipulatedLines.LineCount;
+                for (int i = 0; i < 2; i++)
+                { 
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate point. lowers pointcount by one
+                }
+                for (int i = 0; i < 50000; i++)
+                {
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate. lowers point count by one
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
+                    //activate points called here. increases point count by one
+                    for (int l = 0; l < 9; l+=3)
+                    {
+                        randomInts[iIndex++] = ((int)(randomValues[x++] * lineCount)) * 2;//remove line. line ops. no effects on point count
+                        randomInts[iIndex++] = (int)(randomValues[x++] * pointCount);//add line
+                        randomInts[iIndex++] = (int)(randomValues[x++] * pointCount);//same add line
+                    }
+                }
 
-                int vertexIndex = 0;
+                iIndex = 0;
 
                 for (int i = 0; i < 2; i++)
                 {
 
 
                     //cause inactive neurons to slowly fill up
-                    vertexIndex = ((int)(randomValues[x++] * (points.PointCount - 1) + 1)) * 8;
-                    points.DeactivatePoint(vertexIndex);
+                    points.DeactivatePoint(randomInts[iIndex++]);
 
-                    vertexIndex = ((int)(randomValues[x++] * points.PointCount)) * 8;
                     points.AddPoint(
                         randomValues[x++] * 2 - .5f,//position1
                         randomValues[x++] * 2 - .5f,//position2
@@ -219,11 +231,9 @@ namespace NodeDirectedFuelMap
                     //next cache all the random values first. then use them. so that we can profile. i bet the slow part is actually the calls to pointcount. its a math operation we're doing constantly.
                     //update all kinds of values
 
-                    vertexIndex = ((int)(randomValues[x++]*(points.PointCount-1)+1)) * 8;
-                    points.DeactivatePoint(vertexIndex);
+                    points.DeactivatePoint(randomInts[iIndex++]);
 
-                    vertexIndex = ((int)(randomValues[x++] * points.PointCount)) * 8;
-                    points.UpdatePoint(vertexIndex,
+                    points.UpdatePoint(randomInts[iIndex++],
                         randomValues[x++] * 2 - .5f,//position1
                         randomValues[x++] * 2 - .5f,//position2
                         randomValues[x++],//size1
@@ -235,19 +245,14 @@ namespace NodeDirectedFuelMap
                     );
 
 
-                    if (points.InactiveNeurons.Count > 0)
-                    {
-                        //unusedNeuronIndex = (int)(randomValues[x++] * points.InactiveNeurons.Keys.Count * .999999999999);
-                        points.ActivatePoint(points.InactiveNeurons.First().Value);
-                    }
+                    points.ActivatePoint(points.InactiveNeurons.First().Value);
 
-                    for (int l = 0; l < 9; l++)
+                    for (int l = 0; l < 9; l+=3)
                     {
-                        int lineIndex = ((int)(randomValues[l++] * ManipulatedLines.LineCount)) * 2;
-                        ManipulatedLines.RemoveLine(lineIndex);
+                        ManipulatedLines.RemoveLine(randomInts[iIndex++]);
                         ManipulatedLines.AddLine(
-                            (int)(randomValues[l++] * points.PointCount),
-                            (int)(randomValues[l++] * points.PointCount)
+                            randomInts[iIndex++],
+                            randomInts[iIndex++]
                         );
                     }
                 }
@@ -257,9 +262,11 @@ namespace NodeDirectedFuelMap
             {
                 ;
             }
+            //update point data set
+            GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
             GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
 
-
+            //update line data set
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
             GL.BufferData(BufferTarget.ElementArrayBuffer, ManipulatedLines.LineCount * 2 * sizeof(uint), ManipulatedLines.lines, BufferUsageHint.DynamicDraw);
         }
@@ -314,7 +321,7 @@ namespace NodeDirectedFuelMap
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             Console.WriteLine($"Frame time: {args.Time * 1000:0.000} ms"); 
-            UpdateLocations();
+            UpdateLocationRandomTestData();
             base.OnUpdateFrame(args);
         }
         protected override void OnRenderFrame(FrameEventArgs e)
@@ -342,6 +349,15 @@ namespace NodeDirectedFuelMap
         public float[] FuelRequestMinMax = new float[2] { 0, overlap*overlap/count*6};
         public float[] FuelUsedMinMax = new float[2] { 0, 1 };
         public float[] LinesMinMax = new float[2] { 0, 1 };
+
+        /// <summary>
+        /// one frame essentially of the neural net
+        /// what's it doing shader wise? well basically...
+        /// -CreateFuelRequestShader - drawing energy requirements of newly activated neurons
+        /// -RequestFuelShader - subtracting them from a pool of "fuel" and refilling the pool at an adaptive rate
+        /// -FuelUsedShader - set intermediate texture to some 0-1 values of what percent of requested fuel neurons should receive
+        /// -FuelZeroingShader - cut off anything in the fuel pool texture that is above or below 0-1, keeping it in bounds
+        /// </summary>
         public void RequestFuel()
         {
 
@@ -364,7 +380,7 @@ namespace NodeDirectedFuelMap
             GL.VertexAttribDivisor(CreateFuelRequestShader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
 
 
-
+            //get average value in the fuel pool, used to set refill rate for next frame
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
             FuelZeroingShader.Use();
             FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
@@ -373,6 +389,7 @@ namespace NodeDirectedFuelMap
             //create request pool buffer
             //-already handled by updateLocations loop
             //-draw opacities to request pool buffer
+            //generate requested fuel usage buffer. so many circles
             CreateFuelRequestShader.Use();
             CheckGPUErrors("Error using opacity shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelRequestBuffer);
@@ -382,6 +399,7 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error rendering to activation request float buffer:");
 
             //process fuel pool regen and request subtraction
+            //subtract from fuel pool
             RequestFuelShader.Use();
             CheckGPUErrors("Error using addsubtract shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelPoolBuffer);
@@ -389,8 +407,8 @@ namespace NodeDirectedFuelMap
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
             CheckGPUErrors("Error rendering to subtract from fuel pool float buffer:");
 
-            //process fuel pool zeroing and produce used fuel buffer.
-            FuelUsedShader.Use(RefuelRate);
+            //zero out negative fuel areas(in the future we may divide remaining fuel by the negative values or apply a division to the strength of any neurons in the negative vicinity if we aren't already, but for now
+            FuelUsedShader.Use();
             CheckGPUErrors("Error using min shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelUsedBuffer);
             GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -398,7 +416,7 @@ namespace NodeDirectedFuelMap
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
             CheckGPUErrors("Error rendering to divide from fuel pool and fuel request float buffer:");
 
-            //process fuel pool regen and request subtraction
+            //draw negative areas of fuel usage(overdrawing from the pool). this buffer is an intermediate for dividing activation energy in the next frame by negative valued area's deficit
             FuelZeroingShader.Use();
             CheckGPUErrors("Error using zeroing shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelPoolBuffer);
@@ -483,7 +501,7 @@ namespace NodeDirectedFuelMap
             //create 2D tecture for fuel requested projection
             GL.BindTexture(TextureTarget.Texture2D, FuelRequestTexture);
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R16f, ClientSize.X, ClientSize.Y, 0, PixelFormat.Red, PixelType.Float, IntPtr.Zero);
-            
+
             //create 2D texture for fuel used projection
             GL.BindTexture(TextureTarget.Texture2D, FuelUsedTexture);
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R16f, ClientSize.X, ClientSize.Y, 0, PixelFormat.Red, PixelType.Float, IntPtr.Zero);

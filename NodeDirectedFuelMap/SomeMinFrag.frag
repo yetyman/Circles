@@ -7,6 +7,7 @@ out vec4 FragColor;
 
 void main()
 {
+	//the purpose of this algorithm is to limit negative values in the fuel pool to what is over the available fuel. setting it negative in this way instead of zeroing it out simplifies some later math
 	vec4 req = texture(subtractMap, texCoord);
 	vec4 fuel = texture(fromMap, texCoord);
 	vec4 clr = req;

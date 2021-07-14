@@ -6,6 +6,7 @@ out vec4 FragColor;
 
 void main()
 {
+	//just cutting off values above and below zero
 	vec4 fuel = texture(fromMap, texCoord);
 	if(fuel.r<0 || fuel.g<0 || fuel.b<0)
 	{

@@ -89,7 +89,7 @@ namespace NodeDirectedFuelMap
         {
             return GL.GetAttribLocation(Handle, attribName);
         }
-        public void Use(float constantScale)
+        public void Use()
         {
             GL.UseProgram(Handle);
             GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);

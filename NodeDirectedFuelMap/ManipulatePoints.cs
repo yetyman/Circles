@@ -118,6 +118,7 @@ namespace NodeDirectedFuelMap
         public void MoveNeuronToActive(Neuron neuron, int index)
         {
             //lock (InactiveNeurons)
+            //replacing slow lock with lighter and steadier while wait
             while (waitingOnInactiveDic) ;
             waitingOnInactiveDic = true;
             InactiveNeurons.Remove(neuron.UniqueId);
@@ -278,15 +279,6 @@ namespace NodeDirectedFuelMap
         {
             index += cornerSpace;
 
-            points[index + 0] = 0;//position1
-            points[index + 1] = 0;//position2
-            points[index + 2] = 0;//size1
-            points[index + 3] = 0;//size2
-            points[index + 4] = 0;//size3
-            points[index + 5] = 0;//opacity1
-            points[index + 6] = 0;//opacity2
-            points[index + 7] = 0;//opacity3
-
             MoveNeuronToUnused(ActiveNeurons[index]);
 
             //consolidate into continuous memory
@@ -294,12 +286,22 @@ namespace NodeDirectedFuelMap
             int lp = firstOpenSpace - pointSize;
             if (lp == index)
             {
+
+                //weird optimisation, i can get away with only setting size or opacity to zero here. its never checked, we just don't want it to do anything in the next rendering pass
+                //points[index + 0] = 0;//position1
+                //points[index + 1] = 0;//position2
+                points[index + 2] = 0;//size1
+                points[index + 3] = 0;//size2
+                points[index + 4] = 0;//size3
+                //points[index + 5] = 0;//opacity1
+                //points[index + 6] = 0;//opacity2
+                //points[index + 7] = 0;//opacity3
+ 
+                
                 //here i am removing the highest point and placing it at the newly removed location. IF the removed point is the last point then this logical path
 
                 //i bet this fringe case comes with weird locking implications in the first half of this method, but i haven't considered them yet.
                 //fringe case but basically never
-                firstOpenSpace -= pointSize;
-                return;
             }
             else
             {
@@ -315,10 +317,9 @@ namespace NodeDirectedFuelMap
                 MoveNeuron(lp, index);
 
                 //the last point has been moved back to somewhere else in memory
-                firstOpenSpace -= pointSize;
             }
-            //normally i would worry about cached references to the old removed point interfering with this new point if they had not yet been locked, but point removal should only happen to points that aren't touched at all for a long time. so no such interaction should occur. may require more consideration later
-
+            firstOpenSpace -= pointSize;
+            return;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -335,14 +336,30 @@ namespace NodeDirectedFuelMap
             //if (o2.HasValue) points[index + 6] = ActiveNeurons[index].FuelIntensity = o2.Value;
             //if (o3.HasValue) points[index + 7] = ActiveNeurons[index].NodeCreationIntensity = o3.Value;
 
-            points[index + 0] = ActiveNeurons[index].X = x;
-            points[index + 1] = ActiveNeurons[index].Y = y;
-            points[index + 2] = ActiveNeurons[index].ImpulseRadius = r1;
-            points[index + 3] = ActiveNeurons[index].FuelRadius = r2;
-            points[index + 4] = ActiveNeurons[index].NodeCreationRadius = r3;
-            points[index + 5] = ActiveNeurons[index].ImpulseIntensity = o1;
-            points[index + 6] = ActiveNeurons[index].FuelIntensity = o2;
-            points[index + 7] = ActiveNeurons[index].NodeCreationIntensity = o3;
+            points[index + 0] 
+                //= ActiveNeurons[index].X 
+                = x;
+            points[index + 1] 
+                //= ActiveNeurons[index].Y 
+                = y;
+            points[index + 2] 
+                //= ActiveNeurons[index].ImpulseRadius 
+                = r1;
+            points[index + 3] 
+                //= ActiveNeurons[index].FuelRadius 
+                = r2;
+            points[index + 4] 
+                //= ActiveNeurons[index].NodeCreationRadius 
+                = r3;
+            points[index + 5] 
+                //= ActiveNeurons[index].ImpulseIntensity 
+                = o1;
+            points[index + 6] 
+                //= ActiveNeurons[index].FuelIntensity 
+                = o2;
+            points[index + 7] 
+                //= ActiveNeurons[index].NodeCreationIntensity 
+                = o3;
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {

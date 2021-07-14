@@ -323,43 +323,25 @@ namespace NodeDirectedFuelMap
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UpdatePoint(int index, float x, float y, float r1, float r2, float r3, float o1, float o2, float o3)
+        public void UpdatePoint(int index, float r1, float r2, float r3, float o1, float o2, float o3)
         {
             index += cornerSpace;
 
-            //if (x.HasValue) points[index + 0] = ActiveNeurons[index].X = x.Value;
-            //if (y.HasValue) points[index + 1] = ActiveNeurons[index].Y = y.Value;
-            //if (r1.HasValue) points[index + 2] = ActiveNeurons[index].ImpulseRadius = r1.Value;
-            //if (r2.HasValue) points[index + 3] = ActiveNeurons[index].FuelRadius = r2.Value;
-            //if (r3.HasValue) points[index + 4] = ActiveNeurons[index].NodeCreationRadius = r3.Value;
-            //if (o1.HasValue) points[index + 5] = ActiveNeurons[index].ImpulseIntensity = o1.Value;
-            //if (o2.HasValue) points[index + 6] = ActiveNeurons[index].FuelIntensity = o2.Value;
-            //if (o3.HasValue) points[index + 7] = ActiveNeurons[index].NodeCreationIntensity = o3.Value;
+            points[index + 2] = r1;
+            points[index + 3] = r2;
+            points[index + 4] = r3;
+            points[index + 5] = o1;
+            points[index + 6] = o2;
+            points[index + 7] = o3;
+        }
 
-            points[index + 0] 
-                //= ActiveNeurons[index].X 
-                = x;
-            points[index + 1] 
-                //= ActiveNeurons[index].Y 
-                = y;
-            points[index + 2] 
-                //= ActiveNeurons[index].ImpulseRadius 
-                = r1;
-            points[index + 3] 
-                //= ActiveNeurons[index].FuelRadius 
-                = r2;
-            points[index + 4] 
-                //= ActiveNeurons[index].NodeCreationRadius 
-                = r3;
-            points[index + 5] 
-                //= ActiveNeurons[index].ImpulseIntensity 
-                = o1;
-            points[index + 6] 
-                //= ActiveNeurons[index].FuelIntensity 
-                = o2;
-            points[index + 7] 
-                //= ActiveNeurons[index].NodeCreationIntensity 
-                = o3;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void MovePoint(int index, float x, float y)
+        {
+            index += cornerSpace;
+
+            points[index + 0] = x;
+            points[index + 1] = y;
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {

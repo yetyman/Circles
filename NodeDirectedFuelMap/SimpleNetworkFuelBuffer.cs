@@ -140,28 +140,9 @@ namespace NodeDirectedFuelMap
         }
 
         
-        private void ProcessingLoopFake()
-        {
-            var rand = new Random();
-            Stopwatch _timer = new Stopwatch();
-            _timer.Start();
-            long timeStart = _timer.ElapsedMilliseconds;
-            long timeEnd = _timer.ElapsedMilliseconds;
-            long frameTime = 16;
-            while (true)
-            {
-                timeStart = _timer.ElapsedMilliseconds;
-
-                UpdateLocationRandomTestData();
-
-                timeEnd = _timer.ElapsedMilliseconds;
-                Thread.Sleep(Math.Max((int)(frameTime - (timeEnd - timeStart)), 0));//roughly sync updates to frame speed adjusting for this thread's processing time
-            }
-
-        }
         RandomHelper86 Rand = new RandomHelper86();
         float[] randomValues = new float[50000 * 58];
-        int[] randomInts = new int[2+11*50000];
+        int[] randomInts = new int[2+12*50000];
 
         private void UpdateLocationRandomTestData()
         {
@@ -186,6 +167,7 @@ namespace NodeDirectedFuelMap
                 for (int i = 0; i < 50000; i++)
                 {
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate. lowers point count by one
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
                     //activate points called here. increases point count by one
                     for (int l = 0; l < 9; l+=3)
@@ -234,14 +216,17 @@ namespace NodeDirectedFuelMap
                     points.DeactivatePoint(randomInts[iIndex++]);
 
                     points.UpdatePoint(randomInts[iIndex++],
-                        randomValues[x++] * 2 - .5f,//position1
-                        randomValues[x++] * 2 - .5f,//position2
                         randomValues[x++],//size1
                         randomValues[x++],//size2
                         randomValues[x++],//size3
                         randomValues[x++] * overlap / count,//opacity1
                         randomValues[x++] * overlap / count,//opacity2                         
                         randomValues[x++] * overlap / count//opacity3
+                    );
+
+                    points.MovePoint(randomInts[iIndex++],
+                        randomValues[x++] * 2 - .5f,//position1
+                        randomValues[x++] * 2 - .5f//position2
                     );
 
 

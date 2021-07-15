@@ -198,6 +198,7 @@ namespace NodeDirectedFuelMap
                         randomValues[x++] * overlap / count//opacity3);
                     );
 
+                    //TODO: next step. lets keep lines around. adding them and removing them based on the currently active neurons. should be fast since we already eat the speed of adding and removing lines.
                 }
 
                 //if (points.InactiveNeurons.Count > 0)

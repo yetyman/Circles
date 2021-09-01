@@ -28,11 +28,11 @@ namespace NodeDirectedFuelMap
         int FuelRequestTexture;
         int FuelUsedTexture;
         int LinesTexture;
-        BlurryCircleShader CreateFuelRequestShader;
+        BlurryCircleShader Step1CreateFuelRequestShader;
         MultiColorLineShader RenderLinesShader;
-        SomeSubtractAndAddShader RequestFuelShader;//take pool and request, regen pool?, subtract request from pool. 
-        SomeMinAndDivideShader FuelUsedShader;//take request and pool, generate used amount from request and pool.
-        SomeZeroingShader FuelZeroingShader;//take pool, set negatives to zero
+        SomeSubtractAndAddShader Step2TakeFuelShader;//take pool and request, regen pool?, subtract request from pool. 
+        SomeMinAndDivideShader Step3PercentFuelTakenShader;//take request and pool, generate used amount from request and pool.
+        SomeZeroingShader Step4FuelPoolZeroingShader;//take pool, set negatives to zero
 
         MultiViewShader texShader;
        
@@ -106,10 +106,10 @@ namespace NodeDirectedFuelMap
 
             PointVertexArrayBuffer = GL.GenBuffer();//make triangle object
 
-            CreateFuelRequestShader = new BlurryCircleShader(ClientSize, "CircleLayerShader.vert", "CircleShader.frag");
-            RequestFuelShader = new SomeSubtractAndAddShader("ScreenTriangle.vert", "SomeSubtractAndAddFrag.frag", FuelPoolTexture, FuelRequestTexture, .01f);
-            FuelUsedShader = new SomeMinAndDivideShader("ScreenTriangle.vert", "SomeMinFrag.frag", FuelPoolTexture, FuelRequestTexture);
-            FuelZeroingShader = new SomeZeroingShader("ScreenTriangle.vert", "SomeZeroingFrag.frag", FuelPoolTexture);
+            Step1CreateFuelRequestShader = new BlurryCircleShader(ClientSize, "CircleLayerShader.vert", "CircleShader.frag");
+            Step2TakeFuelShader = new SomeSubtractAndAddShader("ScreenTriangle.vert", "SomeSubtractAndAddFrag.frag", FuelPoolTexture, FuelRequestTexture, .01f);
+            Step3PercentFuelTakenShader = new SomeMinAndDivideShader("ScreenTriangle.vert", "SomeMinFrag.frag", FuelPoolTexture, FuelRequestTexture);
+            Step4FuelPoolZeroingShader = new SomeZeroingShader("ScreenTriangle.vert", "SomeZeroingFrag.frag", FuelPoolTexture);
             RenderLinesShader = new MultiColorLineShader(ClientSize, "LineLayerShader.vert", "LineShader.frag");
             texShader = new MultiViewShader("ScreenTriangle.vert", "MultiViewTexture.frag");
 
@@ -141,8 +141,8 @@ namespace NodeDirectedFuelMap
 
         
         RandomHelper86 Rand = new RandomHelper86();
-        float[] randomValues = new float[50000 * 58];
-        int[] randomInts = new int[2+12*50000];
+        float[] randomValues = new float[50000 * 50];
+        int[] randomInts = new int[2+4*50000];
 
         private void UpdateLocationRandomTestData()
         {
@@ -152,8 +152,8 @@ namespace NodeDirectedFuelMap
                 int iIndex = 0;
                 int fIndex = 0;
                 //separating for profiling
-                
-                randomValues = Rand.Rand(50000 * 58);
+
+                randomValues = Rand.Rand(50000 * 50);
                 //Rand.RandDirect(randomValues);//booo
                 //hi me. time to look at optimizing the point CRUD functions
 
@@ -161,7 +161,7 @@ namespace NodeDirectedFuelMap
                 var pointCount = points.PointCount;
                 var lineCount = ManipulatedLines.LineCount;
                 for (int i = 0; i < 2; i++)
-                { 
+                {
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate point. lowers pointcount by one
                 }
                 for (int i = 0; i < 50000; i++)
@@ -170,12 +170,11 @@ namespace NodeDirectedFuelMap
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
                     //activate points called here. increases point count by one
-                    for (int l = 0; l < 9; l+=3)
-                    {
-                        randomInts[iIndex++] = ((int)(randomValues[x++] * lineCount)) * 2;//remove line. line ops. no effects on point count
-                        randomInts[iIndex++] = (int)(randomValues[x++] * pointCount);//add line
-                        randomInts[iIndex++] = (int)(randomValues[x++] * pointCount);//same add line
-                    }
+                }
+
+                for (int i = 0; i < 5000; i++)
+                { 
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 2))) * 8;
                 }
 
                 iIndex = 0;
@@ -233,15 +232,45 @@ namespace NodeDirectedFuelMap
 
                     points.ActivatePoint(points.InactiveNeurons.First().Value);
 
-                    for (int l = 0; l < 9; l+=3)
+                }
+
+                //add some lines to the neurons
+                for (int i = 0; i < 3; i++)
+                {
+                    var a = points.ActiveNeurons[randomInts[iIndex++] + ManipulatePoints.cornerSpace];
+                    var b = points.ActiveNeurons[randomInts[iIndex++] + ManipulatePoints.cornerSpace];
+                    a.To.Add(b);
+                }
+                //remove some lines from the neurons to keep it even
+                if (ManipulatedLines.LineCount > 50000)
+                    for (int i = 0; i < 3;)
+                        if (randomInts.Length > ++iIndex && points.ActiveNeurons[randomInts[iIndex] + ManipulatePoints.cornerSpace].To.Any())
+                        {
+                            points.ActiveNeurons[randomInts[iIndex] + ManipulatePoints.cornerSpace].To.RemoveAt(0);
+                            i++;
+                        }
+
+                //set all the lines
+                var g = ManipulatedLines.LineCount;
+                int j = 0;
+                for (int i = 0; i < points.ActiveNeurons.Count(); i++)
+                {
+                    if (points.ActiveNeurons[i] == null) continue;
+                    for (int h = 0; h < points.ActiveNeurons[i].To.Count(); h++)
                     {
-                        ManipulatedLines.RemoveLine(randomInts[iIndex++]);
-                        ManipulatedLines.AddLine(
-                            randomInts[iIndex++],
-                            randomInts[iIndex++]
-                        );
+                        if (j < g)
+                            ManipulatedLines.UpdateLine(j, points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex);//oops what if the point it points to isnt active, that wont make much sense
+                        else
+                            ManipulatedLines.AddLine(points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex);
+                        j++;
                     }
                 }
+
+                //clear remaining old lines
+                g = ManipulatedLines.LineCount;
+                for (; j < g; g--)
+                    ManipulatedLines.RemoveLine(g);
+
 
             }
             catch (Exception ex)
@@ -319,9 +348,9 @@ namespace NodeDirectedFuelMap
             RenderInstrumentation();
 
             //if(Math.Abs(FuelZeroingShader.Average - .5f) > threshold)
-            RefuelRate = (.5f - FuelZeroingShader.Average)/1.1f;
+            RefuelRate = (.5f - Step4FuelPoolZeroingShader.Average)/1.1f;
 
-            RequestFuelShader.AddValue = RefuelRate;
+            Step2TakeFuelShader.AddValue = RefuelRate;
 
             Context.SwapBuffers();
             base.OnRenderFrame(e);
@@ -351,32 +380,27 @@ namespace NodeDirectedFuelMap
             //which attribute are we settings, how many is it, what is each it?, should it be normalized?, what's the total size?,
             //TODO: i may not want to normalize
 
-            GL.VertexAttribPointer(CreateFuelRequestShader.PositionLocation, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 12 * sizeof(float));
-            GL.EnableVertexAttribArray(CreateFuelRequestShader.PositionLocation);
-            GL.VertexAttribPointer(CreateFuelRequestShader.SizeLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 14 * sizeof(float));
-            GL.EnableVertexAttribArray(CreateFuelRequestShader.SizeLocation);
-            GL.VertexAttribPointer(CreateFuelRequestShader.OpacityLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 17 * sizeof(float));
-            GL.EnableVertexAttribArray(CreateFuelRequestShader.OpacityLocation);
-            GL.VertexAttribPointer(CreateFuelRequestShader.SquareCornerLocation, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
-            GL.EnableVertexAttribArray(CreateFuelRequestShader.SquareCornerLocation);
+            GL.VertexAttribPointer(Step1CreateFuelRequestShader.PositionLocation, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 12 * sizeof(float));
+            GL.EnableVertexAttribArray(Step1CreateFuelRequestShader.PositionLocation);
+            GL.VertexAttribPointer(Step1CreateFuelRequestShader.SizeLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 14 * sizeof(float));
+            GL.EnableVertexAttribArray(Step1CreateFuelRequestShader.SizeLocation);
+            GL.VertexAttribPointer(Step1CreateFuelRequestShader.OpacityLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 17 * sizeof(float));
+            GL.EnableVertexAttribArray(Step1CreateFuelRequestShader.OpacityLocation);
+            GL.VertexAttribPointer(Step1CreateFuelRequestShader.SquareCornerLocation, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+            GL.EnableVertexAttribArray(Step1CreateFuelRequestShader.SquareCornerLocation);
 
-            GL.VertexAttribDivisor(CreateFuelRequestShader.PositionLocation, 1);//use from start to end, based on instance id instead of vertex index
-            GL.VertexAttribDivisor(CreateFuelRequestShader.SizeLocation, 1);
-            GL.VertexAttribDivisor(CreateFuelRequestShader.OpacityLocation, 1);
-            GL.VertexAttribDivisor(CreateFuelRequestShader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
+            GL.VertexAttribDivisor(Step1CreateFuelRequestShader.PositionLocation, 1);//use from start to end, based on instance id instead of vertex index
+            GL.VertexAttribDivisor(Step1CreateFuelRequestShader.SizeLocation, 1);
+            GL.VertexAttribDivisor(Step1CreateFuelRequestShader.OpacityLocation, 1);
+            GL.VertexAttribDivisor(Step1CreateFuelRequestShader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
 
-
-            //get average value in the fuel pool, used to set refill rate for next frame
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
-            FuelZeroingShader.Use();
-            FuelZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
             //PoolMinMax[1] = FuelZeroingShader.Average;
 
             //create request pool buffer
             //-already handled by updateLocations loop
             //-draw opacities to request pool buffer
             //generate requested fuel usage buffer. so many circles
-            CreateFuelRequestShader.Use();
+            Step1CreateFuelRequestShader.Use();
             CheckGPUErrors("Error using opacity shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelRequestBuffer);
             GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -386,7 +410,7 @@ namespace NodeDirectedFuelMap
 
             //process fuel pool regen and request subtraction
             //subtract from fuel pool
-            RequestFuelShader.Use();
+            Step2TakeFuelShader.Use();
             CheckGPUErrors("Error using addsubtract shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelPoolBuffer);
             CheckGPUErrors("Error binding to opacity fbo:");
@@ -394,7 +418,7 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error rendering to subtract from fuel pool float buffer:");
 
             //zero out negative fuel areas(in the future we may divide remaining fuel by the negative values or apply a division to the strength of any neurons in the negative vicinity if we aren't already, but for now
-            FuelUsedShader.Use();
+            Step3PercentFuelTakenShader.Use();
             CheckGPUErrors("Error using min shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelUsedBuffer);
             GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -403,13 +427,42 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error rendering to divide from fuel pool and fuel request float buffer:");
 
             //draw negative areas of fuel usage(overdrawing from the pool). this buffer is an intermediate for dividing activation energy in the next frame by negative valued area's deficit
-            FuelZeroingShader.Use();
+            Step4FuelPoolZeroingShader.Use();
             CheckGPUErrors("Error using zeroing shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelPoolBuffer);
             CheckGPUErrors("Error binding to opacity fbo:");
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
             CheckGPUErrors("Error rendering to min fuel pool float buffer:");
 
+            //get average value in the fuel pool, used to set refill rate for next frame
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
+            Step4FuelPoolZeroingShader.Use();
+            Step4FuelPoolZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
+
+            //gets the level of activation to be added for the next pass's activation propogation
+            Step5CalculateActivationsShader.Use();
+            CheckGPUErrors("Error using activation shader:");
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelUsedBuffer);//multiplies a neuron's achieved fuel request percentage by the neuron's output activation energy radiation. used to add to neuron's total propogation energy when activating children
+            GL.Clear(ClearBufferMask.ColorBufferBit);//clear 
+            CheckGPUErrors("Error binding to fuel Used fbo:");
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
+            CheckGPUErrors("Error rendering to activation buffer:");
+
+            //get the highest points in the activation pool. should it be the highest or random high ones? i prefer less random, so lets go highest and see if it doesn't backfire completely
+            Step6FindMaximumsShader.Use();
+            CheckGPUErrors("Error using maximums compute shader:");
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, ActivationBuffer);//finding maximums of this, the activation buffer... fuel used isnt activation... its fuel used. activation is another blurry circle buffer i haven't made yet...
+            GL.Clear(ClearBufferMask.ColorBufferBit);//clear 
+            CheckGPUErrors("Error binding to opacity fbo:");
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
+            CheckGPUErrors("Error finding maximums:");
+
+            //two more steps.
+            //7. create new neurons from maximums. kind of already handled
+            //8. go from current neurons to child neurons. including both activated energy and activation energy buffer (paren'ts energy/default level)*requestfulfilledpercentage*default activation level+activation energy buffer)
+            //    -resolve neuron's child connections with some fancy math(fast math is fine for now)
+            //    -should activation level radiation be subtracted from action energy overall? make some falloff function for this if it starts overflowing
+            //9. rinse and repeat
         }
         public void RenderNodeLines()
         {
@@ -427,7 +480,7 @@ namespace NodeDirectedFuelMap
 
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
-            //process fuel pool regen and request subtraction
+            //process active connection array.
             RenderLinesShader.Use();
             CheckGPUErrors("Error using lines shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, LinesBuffer);
@@ -466,13 +519,13 @@ namespace NodeDirectedFuelMap
             GL.DeleteFramebuffer(FuelPoolBuffer);
             GL.DeleteTexture(FuelRequestTexture);
             GL.DeleteTexture(LinesTexture);
-            CreateFuelRequestShader.Dispose();
+            Step1CreateFuelRequestShader.Dispose();
             texShader.Dispose();
             base.OnUnload();
         }
         protected override void OnResize(ResizeEventArgs e)
         {
-            CreateFuelRequestShader.ViewPortSize = ClientSize;
+            Step1CreateFuelRequestShader.ViewPortSize = ClientSize;
 
             //create 2D tecture for fuel remaining projection
             GL.BindTexture(TextureTarget.Texture2D, FuelPoolTexture);

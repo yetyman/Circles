@@ -28,6 +28,7 @@ namespace NodeDirectedFuelMap
         int FuelRequestTexture;
         int FuelUsedTexture;
         int LinesTexture;
+
         BlurryCircleShader Step1CreateFuelRequestShader;
         MultiColorLineShader RenderLinesShader;
         SomeSubtractAndAddShader Step2TakeFuelShader;//take pool and request, regen pool?, subtract request from pool. 

@@ -33,6 +33,7 @@ namespace NodeDirectedFuelMap
         SomeSubtractAndAddShader Step2TakeFuelShader;//take pool and request, regen pool?, subtract request from pool. 
         SomeMinAndDivideShader Step3PercentFuelTakenShader;//take request and pool, generate used amount from request and pool.
         SomeZeroingShader Step4FuelPoolZeroingShader;//take pool, set negatives to zero
+        MaxMipMapShader Step5CalculateActivationsShader;//find the maximum activation level. well actually max activation optimized with max available fuel
 
         MultiViewShader texShader;
        
@@ -104,14 +105,16 @@ namespace NodeDirectedFuelMap
             CheckFramebufferStatus(LinesBuffer);
 
 
+
             PointVertexArrayBuffer = GL.GenBuffer();//make triangle object
 
-            Step1CreateFuelRequestShader = new BlurryCircleShader(ClientSize, "CircleLayerShader.vert", "CircleShader.frag");
-            Step2TakeFuelShader = new SomeSubtractAndAddShader("ScreenTriangle.vert", "SomeSubtractAndAddFrag.frag", FuelPoolTexture, FuelRequestTexture, .01f);
-            Step3PercentFuelTakenShader = new SomeMinAndDivideShader("ScreenTriangle.vert", "SomeMinFrag.frag", FuelPoolTexture, FuelRequestTexture);
-            Step4FuelPoolZeroingShader = new SomeZeroingShader("ScreenTriangle.vert", "SomeZeroingFrag.frag", FuelPoolTexture);
-            RenderLinesShader = new MultiColorLineShader(ClientSize, "LineLayerShader.vert", "LineShader.frag");
-            texShader = new MultiViewShader("ScreenTriangle.vert", "MultiViewTexture.frag");
+            Step1CreateFuelRequestShader = new BlurryCircleShader(ClientSize, "1.DrawCircles\\CircleLayerShader.vert", "1.DrawCircles\\CircleShader.frag");
+            Step2TakeFuelShader = new SomeSubtractAndAddShader("ScreenTriangle.vert", "2.subtract fuel\\SomeSubtractAndAddFrag.frag", FuelPoolTexture, FuelRequestTexture, .01f);
+            Step3PercentFuelTakenShader = new SomeMinAndDivideShader("ScreenTriangle.vert", "3.fuel taken percent(create activation pool)\\SomeMinFrag.frag", FuelPoolTexture, FuelRequestTexture);
+            Step4FuelPoolZeroingShader = new SomeZeroingShader("ScreenTriangle.vert", "4.remove negative fuel pool values\\SomeZeroingFrag.frag", FuelPoolTexture);
+            Step5CalculateActivationsShader = new MaxMipMapShader("6.maximums\\MaxMipMap.compute", FuelUsedTexture);//TODO: this should actually be the growth potential texture, which is activation level * remainingfuel(fuelpool) where activation level = fuelused/fuelrequested*circleActivationEnergyLevel... but for testing this can be an already rendered image first to make sure the mipmap looks right
+            RenderLinesShader = new MultiColorLineShader(ClientSize, "5.1.render lines\\LineLayerShader.vert", "5.1.render lines\\LineShader.frag");
+            texShader = new MultiViewShader("ScreenTriangle.vert", "5.2.render fuel textures\\MultiViewTexture.frag");
 
             //TODO: setup line buffer data arrays, vertex shaders, and line shaders
 
@@ -355,16 +358,6 @@ namespace NodeDirectedFuelMap
             Context.SwapBuffers();
             base.OnRenderFrame(e);
         }
-        public RectangleF PoolBounds = new RectangleF(.01f, .01f, .48f, .48f);
-        public RectangleF FuelRequestBounds = new RectangleF(.01f, .51f, .48f, .48f);
-        public RectangleF FuelUsedBounds = new RectangleF(.51f, .51f, .48f, .48f);
-        public RectangleF LinesBounds = new RectangleF(.51f, .01f, .48f, .48f);
-
-        public float[] PoolMinMax = new float[2] { 0, 1 };
-        public float[] FuelRequestMinMax = new float[2] { 0, overlap*overlap/count*6};
-        public float[] FuelUsedMinMax = new float[2] { 0, 1 };
-        public float[] LinesMinMax = new float[2] { 0, 1 };
-
         /// <summary>
         /// one frame essentially of the neural net
         /// what's it doing shader wise? well basically...
@@ -440,29 +433,32 @@ namespace NodeDirectedFuelMap
             Step4FuelPoolZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
 
             //gets the level of activation to be added for the next pass's activation propogation
-            Step5CalculateActivationsShader.Use();
-            CheckGPUErrors("Error using activation shader:");
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelUsedBuffer);//multiplies a neuron's achieved fuel request percentage by the neuron's output activation energy radiation. used to add to neuron's total propogation energy when activating children
-            GL.Clear(ClearBufferMask.ColorBufferBit);//clear 
-            CheckGPUErrors("Error binding to fuel Used fbo:");
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
+            var maximumValues = Step5CalculateActivationsShader.Use();//later this will be used for new neuron creation
             CheckGPUErrors("Error rendering to activation buffer:");
 
-            //get the highest points in the activation pool. should it be the highest or random high ones? i prefer less random, so lets go highest and see if it doesn't backfire completely
-            Step6FindMaximumsShader.Use();
-            CheckGPUErrors("Error using maximums compute shader:");
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, ActivationBuffer);//finding maximums of this, the activation buffer... fuel used isnt activation... its fuel used. activation is another blurry circle buffer i haven't made yet...
-            GL.Clear(ClearBufferMask.ColorBufferBit);//clear 
-            CheckGPUErrors("Error binding to opacity fbo:");
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
-            CheckGPUErrors("Error finding maximums:");
+            ////get the highest points in the activation pool. should it be the highest or random high ones? i prefer less random, so lets go highest and see if it doesn't backfire completely
+            //Step6FindMaximumsShader.Use();
+            //CheckGPUErrors("Error using maximums compute shader:");
+            //GL.BindFramebuffer(FramebufferTarget.Framebuffer, ActivationBuffer);//finding maximums of this, the activation buffer... fuel used isnt activation... its fuel used. activation is another blurry circle buffer i haven't made yet...
+            //GL.Clear(ClearBufferMask.ColorBufferBit);//clear 
+            //CheckGPUErrors("Error binding to opacity fbo:");
+            //GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
+            //CheckGPUErrors("Error finding maximums:");
+            
+            //Step7FindMaximumSourcesShader.Use();
+            //CheckGPUErrors("Error using maximums compute shader:");
+            //GL.BindFramebuffer(FramebufferTarget.Framebuffer, ActivationBuffer);
+            //GL.Clear(ClearBufferMask.ColorBufferBit);//clear 
+            //CheckGPUErrors("Error binding to opacity fbo:");
+            //GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
+            //CheckGPUErrors("Error finding maximums:");
 
             //two more steps.
-            //7. create new neurons from maximums. kind of already handled
-            //8. go from current neurons to child neurons. including both activated energy and activation energy buffer (paren'ts energy/default level)*requestfulfilledpercentage*default activation level+activation energy buffer)
+            //8. create new neurons from maximums. kind of already handled
+            //9. go from current neurons to child neurons. including both activated energy and activation energy buffer (paren'ts energy/default level)*requestfulfilledpercentage*default activation level+activation energy buffer)
             //    -resolve neuron's child connections with some fancy math(fast math is fine for now)
             //    -should activation level radiation be subtracted from action energy overall? make some falloff function for this if it starts overflowing
-            //9. rinse and repeat
+            //10. rinse and repeat
         }
         public void RenderNodeLines()
         {
@@ -489,19 +485,35 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error rendering to line buffer:");
         }
 
+
+        public RectangleF FuelRequestBounds = new RectangleF(.01f, .34f, .32f, .32f);
+        public RectangleF FuelUsedBounds = new RectangleF(.34f, .34f, .32f, .32f);
+        public RectangleF MipMapBounds = new RectangleF(.67f, .34f, .16f, .32f);//half width
+        public RectangleF PoolBounds = new RectangleF(.01f, .01f, .32f, .32f);
+        public RectangleF LinesBounds = new RectangleF(.34f, .01f, .32f, .32f);
+
+        public float[] FuelRequestMinMax = new float[2] { 0, overlap * overlap / count * 6 };
+        public float[] FuelUsedMinMax = new float[2] { 0, 1 };
+        public float[] MipMapMinMax = new float[2] { 0, 1 };
+        public float[] PoolMinMax = new float[2] { 0, 1 };
+        public float[] LinesMinMax = new float[2] { 0, 1 };
+
         public void RenderInstrumentation()
         {
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
             //draw float buffer from texture to back buffer. one call for each one we'd like to display
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
-            texShader.Use(FuelPoolTexture, PoolBounds, PoolMinMax);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-
             texShader.Use(FuelRequestTexture, FuelRequestBounds, FuelRequestMinMax);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             texShader.Use(FuelUsedTexture, FuelUsedBounds, FuelUsedMinMax);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+            texShader.Use(Step5CalculateActivationsShader.MipMapImageHandle, MipMapBounds, MipMapMinMax);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+            texShader.Use(FuelPoolTexture, PoolBounds, PoolMinMax);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             texShader.Use(LinesTexture, LinesBounds, LinesMinMax);

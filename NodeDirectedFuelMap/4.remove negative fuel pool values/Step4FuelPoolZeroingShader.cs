@@ -8,20 +8,17 @@ using System.Text;
 
 namespace NodeDirectedFuelMap
 {
-    class SomeMinAndDivideShader//min and divide
+    class SomeZeroingShader
     {
         int Handle;
         Stopwatch _timer;
         public int VertexShader { get; private set; }
         public int FragmentShader { get; private set; }
-        public int OpacityTextureLocation { get; private set; }
-        public int ColorLocation { get; private set; }
 
         public int FromTextureLocation { get; private set; }
-        public int SubtractTextureLocation { get; private set; }
         public int FromTexture { get; private set; }
-        public int SubtractTexture { get; private set; }
-        public SomeMinAndDivideShader(string vertexPath, string fragmentPath, int fromTexture, int subtractTexture)
+        public float Average { get; private set; }
+        public SomeZeroingShader(string vertexPath, string fragmentPath, int fromTexture)
         {
             _timer = new Stopwatch();
             string VertexShaderSource;
@@ -74,12 +71,8 @@ namespace NodeDirectedFuelMap
 
 
 
-            ColorLocation = GL.GetUniformLocation(Handle, "LayerColor");
-            OpacityTextureLocation = GL.GetUniformLocation(Handle, "opacityMap");
             FromTextureLocation = GL.GetUniformLocation(Handle, "fromMap");
-            SubtractTextureLocation = GL.GetUniformLocation(Handle, "subtractMap");
             FromTexture = fromTexture;
-            SubtractTexture = subtractTexture;
 
 
             _timer.Start();
@@ -92,28 +85,42 @@ namespace NodeDirectedFuelMap
         public void Use()
         {
             GL.UseProgram(Handle);
-            GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
+            GL.BlendFunc(BlendingFactor.One, BlendingFactor.Zero);
             GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
-            //double timeValue = _timer.Elapsed.TotalSeconds;
-            //float greenValue = (float)Math.Sin(timeValue) / 4.0f + 0.5f;
-            GL.Uniform4(ColorLocation, 0, 1, 0f, 1f);
 
             CheckGPUErrors("Error setting color:");
 
             GL.ActiveTexture(TextureUnit.Texture0); //select texture unit(hardware) slot
             GL.BindTexture(TextureTarget.Texture2D, FromTexture); //set the slot to the pointer to texture in gpu memory
 
-            GL.ActiveTexture(TextureUnit.Texture1); //select texture unit(hardware) slot
-            GL.BindTexture(TextureTarget.Texture2D, SubtractTexture); //set the slot to the pointer to texture in gpu memory
-
-            GL.Uniform1(FromTextureLocation, 0);
-            GL.Uniform1(SubtractTextureLocation, 1);
+            GL.Uniform1(FromTextureLocation, 0);//because its texture0
 
             CheckGPUErrors("Error setting texture:");
         }
+        public void CheckAverage(float w, float h)
+        {
+            GL.GenerateTextureMipmap(FromTexture);
+            CheckGPUErrors("Error generating mipmap:");
 
+            float fPixel = new float();
+
+            GL.BindTexture(TextureTarget.Texture2D, FromTexture);
+            CheckGPUErrors("Error binding texture:");
+
+            var level = (int)(Math.Floor(Math.Log2(Math.Max(w, h))));
+            try
+            {
+                GL.GetTexImage<float>(TextureTarget.Texture2D, level, PixelFormat.Red, PixelType.Float, ref fPixel);
+            }
+            catch (Exception ex)
+            {
+                //this catch isnt doing anything. app still crashes. figure this out then get the lines to show up
+                CheckGPUErrors("Error calculating average:");
+            }
+            Average = fPixel;//single channel texture
+        }
         private void CheckGPUErrors(string errorPrefix)
         {
             ErrorCode err;
@@ -137,7 +144,7 @@ namespace NodeDirectedFuelMap
             }
         }
 
-        ~SomeMinAndDivideShader()
+        ~SomeZeroingShader()
         {
             GL.DeleteProgram(Handle);
         }

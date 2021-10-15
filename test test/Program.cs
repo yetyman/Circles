@@ -13,7 +13,7 @@ namespace test_test
             //var game = new PointMap.SimpleCircles(500, 500, "Learning points in OpenTK drawing single pixels");
             //var game = new RadiationMap.SimpleCircles(500, 500, "Learning points in OpenTK - lots of fast random gradient circles!");
             //var game = new FuelMap.SimpleFuelBuffer(500, 500, "Learning points in OpenTK - lots of fast subtracton and division! so many views! instrumentation! abstraction!");
-            var game = new NodeDirectedFuelMap.SimpleNetworkFuelBuffer(500, 500, "Learning lines in OpenTK - lots of varying memory updates to the gfx card! inherited abstractions! lists!");
+            var game = new NodeDirectedFuelMap.SimpleNetworkFuelBuffer(666, 666, "Learning lines in OpenTK - lots of varying memory updates to the gfx card! inherited abstractions! lists! compute shaders!");
             //var game = new FunShapes.SimpleShapes(500, 500, "Learning fans in OpenTK - cool shape changing grid");
             game.Run();
 

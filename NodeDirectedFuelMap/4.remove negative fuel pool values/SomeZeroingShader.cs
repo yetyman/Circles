@@ -8,7 +8,7 @@ using System.Text;
 
 namespace NodeDirectedFuelMap
 {
-    class SomeZeroingShader
+    class Step4FuelPoolZeroingShader
     {
         int Handle;
         Stopwatch _timer;
@@ -18,7 +18,7 @@ namespace NodeDirectedFuelMap
         public int FromTextureLocation { get; private set; }
         public int FromTexture { get; private set; }
         public float Average { get; private set; }
-        public SomeZeroingShader(string vertexPath, string fragmentPath, int fromTexture)
+        public Step4FuelPoolZeroingShader(string vertexPath, string fragmentPath, int fromTexture)
         {
             _timer = new Stopwatch();
             string VertexShaderSource;
@@ -144,7 +144,7 @@ namespace NodeDirectedFuelMap
             }
         }
 
-        ~SomeZeroingShader()
+        ~Step4FuelPoolZeroingShader()
         {
             GL.DeleteProgram(Handle);
         }

@@ -16,12 +16,16 @@
     <WarningLevel>5</WarningLevel>
   </PropertyGroup>
 
+
   <ItemGroup>
     <PackageReference Include="OpenTK" Version="4.4.0" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="5.1.render lines\LineLayerShader.vert">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="6.maximums\MaxMipMap.compute">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="1.DrawCircles\CircleLayerShader.vert">
@@ -48,6 +52,10 @@
     <None Update="4.remove negative fuel pool values\SomeZeroingFrag.frag">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="7.find lines leading to maximums\" />
   </ItemGroup>
 
 </Project>

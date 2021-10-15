@@ -1,0 +1,57 @@
+﻿#version 430
+layout(local_size_x = 2, local_size_y = 2) in;//pixel size of local work group, for a binary tree this would be 2
+layout(r16f, binding = 0) uniform readonly image2D img_input;//single value image2d of floats
+layout(rgba16f, binding = 1) uniform readonly image2D img_mipmaps;//same dimensions should hold all the maps, rgba to hold the positions and value from the img_input
+uniform readonly int miplevel;
+
+void main() {
+    // get index in global work group i.e x,y position
+    ivec2 pixel_coords = gl_GlobalInvocationID.xy;
+
+    //only process if its within the next mip's area(bounds check)
+    ivec2 input_image_size = imageSize(img_input);
+    if (pixel_coords.y >= input_image_size.y * .5 ^ mipLevel && pixel_coords.y < input_image_size.y * .5 ^ (mipLevel - 1) && pixel_coords.x < input_image_size.x * .5 ^ (mipLevel - 1))
+    {
+
+        //read image2d at pixel_coords? can i not just img_input[pixel_coords]? well syntax is syntax
+        //(x,y,value)
+        vec3 color00;
+        vec3 color01;
+        vec3 color10;
+        vec3 color11;
+        
+        //use input image as source
+        if (mipLevel == 1) {
+            ivec2 og_coord = vec2(pixel_coords.x, pixel_coords.y - input_image_size.y / 2) * 2;
+            color00 = vec3(og_coord + vec2(0, 0), imageLoad(img_input, og_coord + vec2(0, 0)).x);
+            color01 = vec3(og_coord + vec2(0, 1), imageLoad(img_input, og_coord + vec2(0, 1)).x);
+            color10 = vec3(og_coord + vec2(1, 0), imageLoad(img_input, og_coord + vec2(1, 0)).x);
+            color11 = vec3(og_coord + vec2(1, 1), imageLoad(img_input, og_coord + vec2(1, 1)).x);
+        }
+        //use img_mipmaps as source
+        else {
+            ivec2 prev_mip_coord = pixel_coords * 2;
+            color00 = imageLoad(img_mipmaps, prev_mip_coord + vec2(0, 0));
+            color01 = imageLoad(img_mipmaps, prev_mip_coord + vec2(0, 1));
+            color10 = imageLoad(img_mipmaps, prev_mip_coord + vec2(1, 0));
+            color11 = imageLoad(img_mipmaps, prev_mip_coord + vec2(1, 1));
+        }
+
+        //comparison algorithm - maximum
+        vec3 finalist1;
+        vec3 finalist2;
+        if (color00.z > color01.z)
+            finalist1 = color00;
+        else finalist1 = color01;
+
+        if (color10.z > color11.z)
+            finalist2 = color10;
+        else finalist2 = color11;
+
+        if (finalist2.z > finalist1.z)
+            finalist1 = finalist2;
+
+        //set the mipmap coordinate here
+        imageStore(half_image, pixelcoords, finalist1); 
+    }
+}

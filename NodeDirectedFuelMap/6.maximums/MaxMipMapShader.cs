@@ -58,8 +58,9 @@ namespace NodeDirectedFuelMap
             InputImageHandle = inputImageHandle;
 
             GL.BindTexture(TextureTarget.Texture2D, InputImageHandle);
-            GL.GetTexParameter(TextureTarget.Texture2D, GetTextureParameter.TextureHeight, out int height);
-            GL.GetTexParameter(TextureTarget.Texture2D, GetTextureParameter.TextureWidth, out int width);
+            GL.GetTexLevelParameter(TextureTarget.Texture2D, 0, GetTextureParameter.TextureHeight, out int height);
+            GL.GetTexLevelParameter(TextureTarget.Texture2D, 0, GetTextureParameter.TextureWidth, out int width);
+            CheckGPUErrors("Error Load8ing compute shader Float Texture:");
             MipMapImageHandle = InitializeRGBATexture(width/2, height);//instantiate this here, should match the format in the shader and be half the width of inputImageHandle
 
             _timer.Start();
@@ -94,6 +95,7 @@ namespace NodeDirectedFuelMap
             {
                 GL.Uniform1(MipLevelLocation, MipLevel);
                 GL.DispatchCompute(inputImageWidth, inputImageHeight, 1);
+                GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);//should block until the compute finishes?
                 MipLevel++;
             }
             MipLevel--;
@@ -110,11 +112,15 @@ namespace NodeDirectedFuelMap
         private int InitializeRGBATexture(int width, int height)
         {
             var requestTexture = GL.GenTexture();
+            CheckGPUErrors("Error Load4ing compute shader Float Texture:");
             GL.BindTexture(TextureTarget.Texture2D, requestTexture);
+            CheckGPUErrors("Error Loadsing compute shader Float Texture:");
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba16f, width, height, 0, PixelFormat.Rgba, PixelType.Float, IntPtr.Zero);
+            CheckGPUErrors("Error Load1ing compute shader Float Texture:");
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (float)TextureMinFilter.Nearest);
+            CheckGPUErrors("Error Load2ing compute shader Float Texture:");
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (float)TextureMagFilter.Nearest);
-            CheckGPUErrors("Error Loading compute shader Float Texture:");
+            CheckGPUErrors("Error Load3ing compute shader Float Texture:");
 
             return requestTexture;
         }

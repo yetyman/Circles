@@ -275,7 +275,7 @@ namespace NodeDirectedFuelMap
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DeactivatePoint(int index)
         {
-            index += cornerSpace;
+            //index += cornerSpace;
 
             MoveNeuronToUnused(ActiveNeurons[index]);
 
@@ -323,7 +323,7 @@ namespace NodeDirectedFuelMap
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdatePoint(int index, float r1, float r2, float r3, float o1, float o2, float o3)
         {
-            index += cornerSpace;
+            //index += cornerSpace;
 
             points[index + 2] = r1;
             points[index + 3] = r2;
@@ -336,14 +336,14 @@ namespace NodeDirectedFuelMap
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MovePoint(int index, float x, float y)
         {
-            index += cornerSpace;
+            //index += cornerSpace;
 
             points[index + 0] = x;
             points[index + 1] = y;
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
-            index += cornerSpace;
+            //index += cornerSpace;
 
             if (x.HasValue) points[index + 0] += x.Value;
             if (y.HasValue) points[index + 1] += y.Value;

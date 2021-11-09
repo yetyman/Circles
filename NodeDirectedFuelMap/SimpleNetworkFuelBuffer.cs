@@ -166,19 +166,19 @@ namespace NodeDirectedFuelMap
                 var lineCount = ManipulatedLines.LineCount;
                 for (int i = 0; i < 2; i++)
                 {
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate point. lowers pointcount by one
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8 + ManipulatePoints.cornerSpace;//deactivate point. lowers pointcount by one
                 }
                 for (int i = 0; i < 50000; i++)
                 {
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate. lowers point count by one
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8 + ManipulatePoints.cornerSpace;//deactivate. lowers point count by one
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8 + ManipulatePoints.cornerSpace;//update. no effect on point count
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8 + ManipulatePoints.cornerSpace;//update. no effect on point count
                     //activate points called here. increases point count by one
                 }
 
                 for (int i = 0; i < 5000; i++)
                 { 
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 2))) * 8;
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 2))) * 8+ ManipulatePoints.cornerSpace;
                 }
 
                 iIndex = 0;
@@ -191,8 +191,8 @@ namespace NodeDirectedFuelMap
                     points.DeactivatePoint(randomInts[iIndex++]);
 
                     points.AddPoint(
-                        randomValues[x++] * 2 - .5f,//position1
-                        randomValues[x++] * 2 - .5f,//position2
+                        randomValues[x++] * 2 - .5f,//positionX
+                        randomValues[x++] * 2 - .5f,//positionY
                         randomValues[x++],//size1
                         randomValues[x++],//size2
                         randomValues[x++],//size3
@@ -241,16 +241,16 @@ namespace NodeDirectedFuelMap
                 //add some lines to the neurons
                 for (int i = 0; i < 3; i++)
                 {
-                    var a = points.ActiveNeurons[randomInts[iIndex++] + ManipulatePoints.cornerSpace];
-                    var b = points.ActiveNeurons[randomInts[iIndex++] + ManipulatePoints.cornerSpace];
+                    var a = points.ActiveNeurons[randomInts[iIndex++]];
+                    var b = points.ActiveNeurons[randomInts[iIndex++]];
                     a.To.Add(b);
                 }
                 //remove some lines from the neurons to keep it even
                 if (ManipulatedLines.LineCount > 50000)
                     for (int i = 0; i < 3;)
-                        if (randomInts.Length > ++iIndex && points.ActiveNeurons[randomInts[iIndex] + ManipulatePoints.cornerSpace].To.Any())
+                        if (randomInts.Length > ++iIndex && points.ActiveNeurons[randomInts[iIndex]].To.Any())
                         {
-                            points.ActiveNeurons[randomInts[iIndex] + ManipulatePoints.cornerSpace].To.RemoveAt(0);
+                            points.ActiveNeurons[randomInts[iIndex]].To.RemoveAt(0);
                             i++;
                         }
 
@@ -387,6 +387,7 @@ namespace NodeDirectedFuelMap
             GL.VertexAttribDivisor(Step1CreateFuelRequestShader.SizeLocation, 1);
             GL.VertexAttribDivisor(Step1CreateFuelRequestShader.OpacityLocation, 1);
             GL.VertexAttribDivisor(Step1CreateFuelRequestShader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
 
             //PoolMinMax[1] = FuelZeroingShader.Average;
 
@@ -400,7 +401,9 @@ namespace NodeDirectedFuelMap
             GL.Clear(ClearBufferMask.ColorBufferBit);
             CheckGPUErrors("Error binding to opacity fbo:");
             GL.DrawElementsInstanced(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt ,(IntPtr)0,points.PointCount);
+            //hi me. pull up renderdoc and diagnose this stupid outofmemory exception!
             CheckGPUErrors("Error rendering to activation request float buffer:");
+
 
             //process fuel pool regen and request subtraction
             //subtract from fuel pool

@@ -113,7 +113,7 @@ namespace NodeDirectedFuelMap
             Step2TakeFuelShader = new SomeSubtractAndAddShader("ScreenTriangle.vert", "2.subtract fuel\\SomeSubtractAndAddFrag.frag", FuelPoolTexture, FuelRequestTexture, .01f);
             Step3PercentFuelTakenShader = new SomeMinAndDivideShader("ScreenTriangle.vert", "3.fuel taken percent(create activation pool)\\SomeMinFrag.frag", FuelPoolTexture, FuelRequestTexture);
             Step4FuelPoolZeroingShader = new SomeZeroingShader("ScreenTriangle.vert", "4.remove negative fuel pool values\\SomeZeroingFrag.frag", FuelPoolTexture);
-            Step5CalculateActivationsShader = new MaxMipMapShader("6.maximums\\MaxMipMap.compute", FuelUsedTexture);//TODO: this should actually be the growth potential texture, which is activation level * remainingfuel(fuelpool) where activation level = fuelused/fuelrequested*circleActivationEnergyLevel... but for testing this can be an already rendered image first to make sure the mipmap looks right
+            Step5CalculateActivationsShader = new MaxMipMapShader("6.maximums\\MaxMipMap.compute", FuelPoolTexture, FuelRequestTexture);//TODO: this should actually be the growth potential texture, which is activation level * remainingfuel(fuelpool) where activation level = fuelused/fuelrequested*circleActivationEnergyLevel... but for testing this can be an already rendered image first to make sure the mipmap looks right
             CheckGPUErrors("Error initializing compute shader");//just in case
             RenderLinesShader = new MultiColorLineShader(ClientSize, "5.1.render lines\\LineLayerShader.vert", "5.1.render lines\\LineShader.frag");
             CheckGPUErrors("Error initializing line shader");//just in case
@@ -539,6 +539,7 @@ namespace NodeDirectedFuelMap
             GL.DeleteTexture(FuelRequestTexture);
             GL.DeleteTexture(LinesTexture);
             Step1CreateFuelRequestShader.Dispose();
+            Step5CalculateActivationsShader.Dispose();
             texShader.Dispose();
             base.OnUnload();
         }

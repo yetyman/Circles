@@ -14,8 +14,10 @@ namespace NodeDirectedFuelMap
         Stopwatch _timer;
         public int ComputeShader { get; private set; }
         public int InputImageLocation { get; private set; }
+        public int InputImageLocation2 { get; private set; }
         public int MipMapImageLocation { get; private set; }
         public int InputImageHandle { get; private set; }
+        public int InputImageHandle2 { get; private set; }
         public int MipMapImageHandle { get; private set; }
         public int MipMapFrameBufferHandle { get; private set; }
         public int MipLevelLocation { get; private set; }
@@ -23,7 +25,7 @@ namespace NodeDirectedFuelMap
         public float MipScale { get; set; }
         private int InputImageWidth = 0;
         private int InputImageHeight = 0;
-        public MaxMipMapShader(string computePath, int inputImageHandle)
+        public MaxMipMapShader(string computePath, int inputImageHandle, int inputImageHandle2)
         {
             _timer = new Stopwatch();
 
@@ -57,9 +59,11 @@ namespace NodeDirectedFuelMap
             GL.DeleteShader(ComputeShader);
 
             InputImageLocation = GL.GetUniformLocation(Handle, "img_input");
+            InputImageLocation2 = GL.GetUniformLocation(Handle, "img_input_2");
             MipMapImageLocation = GL.GetUniformLocation(Handle, "img_mipmaps");
             MipLevelLocation = GL.GetUniformLocation(Handle, "mip_level");
             InputImageHandle = inputImageHandle;
+            InputImageHandle2 = inputImageHandle2;
 
             GL.BindTexture(TextureTarget.Texture2D, InputImageHandle);
             GL.GetTexLevelParameter(TextureTarget.Texture2D, 0, GetTextureParameter.TextureHeight, out InputImageHeight);
@@ -83,8 +87,9 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error setting compute shader to current program:");
 
             GL.BindImageTexture(0, InputImageHandle, 0, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R16f);
+            GL.BindImageTexture(1, InputImageHandle2, 0, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R16f);
 
-            GL.BindImageTexture(1, MipMapImageHandle, 0, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba16f);
+            GL.BindImageTexture(2, MipMapImageHandle, 0, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba16f);
 
             CheckGPUErrors("Error setting up compute shader:");
             

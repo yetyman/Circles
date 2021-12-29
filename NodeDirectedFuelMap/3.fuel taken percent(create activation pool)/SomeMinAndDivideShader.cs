@@ -132,7 +132,6 @@ namespace NodeDirectedFuelMap
             if (!disposedValue)
             {
                 GL.DeleteProgram(Handle);
-
                 disposedValue = true;
             }
         }

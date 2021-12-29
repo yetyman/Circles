@@ -64,6 +64,8 @@ namespace NodeDirectedFuelMap
                     NeuronPool.Push(new Neuron() { UniqueId = NeuronIDs++ });
 
                 InactiveNeurons = new Dictionary<int, Neuron>(maxUnusedCount);
+                //change inactive neurons to an array and start sending all of it to the gfx card every frame instead of just the active neurons. this will simplify the line shader, but also bring the math closer to what the shader version will need
+                //abstract this line class to simplify that. this is an easy one to abstract and abstract should be compile time so no added cost
 
                 //copy corners to buffered data. probably static, but we'll see
                 for (int i = 0; i < cornerSpace; i++)

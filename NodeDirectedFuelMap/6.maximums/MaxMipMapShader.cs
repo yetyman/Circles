@@ -17,8 +17,12 @@ namespace NodeDirectedFuelMap
         public int MipMapImageLocation { get; private set; }
         public int InputImageHandle { get; private set; }
         public int MipMapImageHandle { get; private set; }
+        public int MipMapFrameBufferHandle { get; private set; }
         public int MipLevelLocation { get; private set; }
-        public float MipLevel { get; set; }
+        public uint MipLevel { get; set; }
+        public float MipScale { get; set; }
+        private int InputImageWidth = 0;
+        private int InputImageHeight = 0;
         public MaxMipMapShader(string computePath, int inputImageHandle)
         {
             _timer = new Stopwatch();
@@ -54,14 +58,16 @@ namespace NodeDirectedFuelMap
 
             InputImageLocation = GL.GetUniformLocation(Handle, "img_input");
             MipMapImageLocation = GL.GetUniformLocation(Handle, "img_mipmaps");
-            MipLevelLocation = GL.GetUniformLocation(Handle, "miplevel");
+            MipLevelLocation = GL.GetUniformLocation(Handle, "mip_level");
             InputImageHandle = inputImageHandle;
 
             GL.BindTexture(TextureTarget.Texture2D, InputImageHandle);
-            GL.GetTexLevelParameter(TextureTarget.Texture2D, 0, GetTextureParameter.TextureHeight, out int height);
-            GL.GetTexLevelParameter(TextureTarget.Texture2D, 0, GetTextureParameter.TextureWidth, out int width);
+            GL.GetTexLevelParameter(TextureTarget.Texture2D, 0, GetTextureParameter.TextureHeight, out InputImageHeight);
+            GL.GetTexLevelParameter(TextureTarget.Texture2D, 0, GetTextureParameter.TextureWidth, out InputImageWidth);
             CheckGPUErrors("Error Load8ing compute shader Float Texture:");
-            MipMapImageHandle = InitializeRGBATexture(width/2, height);//instantiate this here, should match the format in the shader and be half the width of inputImageHandle
+            
+            MipMapImageHandle = InitializeRGBATexture(InputImageWidth / 2, InputImageHeight);//instantiate this here, should match the format in the shader and be half the width of inputImageHandle
+            CheckGPUErrors("Error initializing compute shader3");//just in case
 
             _timer.Start();
 
@@ -76,27 +82,24 @@ namespace NodeDirectedFuelMap
 
             CheckGPUErrors("Error setting compute shader to current program:");
 
-            GL.ActiveTexture(TextureUnit.Texture0); //select texture unit(hardware) slot
-            GL.BindTexture(TextureTarget.Texture2D, InputImageHandle); //set the slot to the pointer to texture in gpu memory
+            GL.BindImageTexture(0, InputImageHandle, 0, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R16f);
 
-            GL.ActiveTexture(TextureUnit.Texture1); //select texture unit(hardware) slot
-            GL.BindTexture(TextureTarget.Texture2D, MipMapImageHandle); //set the slot to the pointer to texture in gpu memory
-
-            GL.Uniform1(InputImageLocation, 0);
-            GL.Uniform1(MipMapImageLocation, 1);
+            GL.BindImageTexture(1, MipMapImageHandle, 0, false, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba16f);
 
             CheckGPUErrors("Error setting up compute shader:");
             
             //execute the shader once for each mipmap level
             MipLevel = 0;
-            var inputImageWidth = 0;//get input image width
-            var inputImageHeight = 0;//get input image height
-            while (Math.Pow(2, MipLevel + 1) < inputImageHeight)
+            MipScale = (float)Math.Pow(2, MipLevel);
+            while (MipScale*2 < InputImageHeight)
             {
-                GL.Uniform1(MipLevelLocation, MipLevel);
-                GL.DispatchCompute(inputImageWidth, inputImageHeight, 1);
+                GL.Uniform1(MipLevelLocation, MipLevel+1);
+                //GL.DispatchCompute(InputImageWidth/(int)MipScale, InputImageHeight/(int)MipScale, 1);
+                GL.DispatchCompute(InputImageWidth, InputImageHeight, 1);
                 GL.MemoryBarrier(MemoryBarrierFlags.AllBarrierBits);//should block until the compute finishes?
+                CheckGPUErrors("Error executing compute shader at mip level "+MipLevel+":");
                 MipLevel++;
+                MipScale = (float)Math.Pow(2, MipLevel);
             }
             MipLevel--;
 
@@ -104,6 +107,7 @@ namespace NodeDirectedFuelMap
 
             //get the values at (0,1) from the mipmap image, should be the final 1x1 mipmap
             var output = new float[4];
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, MipMapFrameBufferHandle);
             GL.ReadPixels(0,1,1,1,PixelFormat.Rgba,PixelType.Float, output);// x=original_X, y=original_Y, z=original_value
 
             return output[0..2];
@@ -111,6 +115,7 @@ namespace NodeDirectedFuelMap
 
         private int InitializeRGBATexture(int width, int height)
         {
+
             var requestTexture = GL.GenTexture();
             CheckGPUErrors("Error Load4ing compute shader Float Texture:");
             GL.BindTexture(TextureTarget.Texture2D, requestTexture);
@@ -121,6 +126,10 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error Load2ing compute shader Float Texture:");
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (float)TextureMagFilter.Nearest);
             CheckGPUErrors("Error Load3ing compute shader Float Texture:");
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+            CheckGPUErrors("Error Load3ing compute shader Float Texture:");
+            //GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, requestTexture, 0);
 
             return requestTexture;
         }

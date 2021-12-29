@@ -114,9 +114,12 @@ namespace NodeDirectedFuelMap
             Step3PercentFuelTakenShader = new SomeMinAndDivideShader("ScreenTriangle.vert", "3.fuel taken percent(create activation pool)\\SomeMinFrag.frag", FuelPoolTexture, FuelRequestTexture);
             Step4FuelPoolZeroingShader = new SomeZeroingShader("ScreenTriangle.vert", "4.remove negative fuel pool values\\SomeZeroingFrag.frag", FuelPoolTexture);
             Step5CalculateActivationsShader = new MaxMipMapShader("6.maximums\\MaxMipMap.compute", FuelUsedTexture);//TODO: this should actually be the growth potential texture, which is activation level * remainingfuel(fuelpool) where activation level = fuelused/fuelrequested*circleActivationEnergyLevel... but for testing this can be an already rendered image first to make sure the mipmap looks right
+            CheckGPUErrors("Error initializing compute shader");//just in case
             RenderLinesShader = new MultiColorLineShader(ClientSize, "5.1.render lines\\LineLayerShader.vert", "5.1.render lines\\LineShader.frag");
+            CheckGPUErrors("Error initializing line shader");//just in case
             texShader = new MultiViewShader("ScreenTriangle.vert", "5.2.render fuel textures\\MultiViewTexture.frag");
 
+            CheckGPUErrors("Error initializing shader classes");//just in case
             //TODO: setup line buffer data arrays, vertex shaders, and line shaders
 
             PointArrayObject = GL.GenVertexArray();
@@ -263,7 +266,7 @@ namespace NodeDirectedFuelMap
                     for (int h = 0; h < points.ActiveNeurons[i].To.Count(); h++)
                     {
                         if (j < g)
-                            ManipulatedLines.UpdateLine(j, points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex);//oops what if the point it points to isnt active, that wont make much sense
+                            ManipulatedLines.UpdateLine(j, points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex);//oops what if the point it points to isnt active, that wont make much sense. i think i need to cache ALL the point's locations, active or not on the gfx card, then just update the active list with its extra data often. or could all the points go on the gfx card? if 1 million of them would fit on it no problem in a single managable array then i'm game
                         else
                             ManipulatedLines.AddLine(points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex);
                         j++;

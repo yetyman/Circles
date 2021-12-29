@@ -481,6 +481,8 @@ namespace NodeDirectedFuelMap
             GL.VertexAttribDivisor(RenderLinesShader.PositionLocation, 0);//use from start to end, based on instance id instead of vertex index
 
 
+            //TODO: hi me! this is the next step. fix up the way lines are displayed. i think all it'll really need is for the gfx card to keep all the point locations cached(active or otherwise) and then you can just reference that array in this shader to get all the locations instead of just the active ones
+            //TODO: after that will be finding lines that start or end around the most optimal activation area(the compute shade may still need a little work to get that final locations out)
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
             //process active connection array.

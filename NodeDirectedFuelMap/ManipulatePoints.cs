@@ -14,8 +14,6 @@ namespace NodeDirectedFuelMap
         //for now, for clarity, i'll use c# and update the buffered data as i have been, 
         //this will like be the first bottleneck to overcome as the graph becomes functional
 
-        private const float half = .5f;
-        private const float circleScale = half;
 
         public float[] points;
         public Neuron[] ActiveNeurons;
@@ -33,16 +31,8 @@ namespace NodeDirectedFuelMap
         public const float DefaultNodeCreationIntensity = MinimumIntensity;
 
         public const int pointSize = 8;
-        public static int cornerSpace => QuadCorners.Length;
         public int allocatedSpace => points.Length;
-        public int PointCount => (firstOpenSpace - cornerSpace - 1) / pointSize;
-        public static float[] QuadCorners = new float[]
-        {
-            -circleScale,  circleScale, 0.0f,  //Top-left vertex
-            -circleScale, -circleScale, 0.0f,  //Bottom-left vertex
-             circleScale,  circleScale, 0.0f,  //Top-right vertex
-             circleScale, -circleScale, 0.0f,  //Bottom-right vertex
-        };
+        public int PointCount => (firstOpenSpace - 1) / pointSize;
 
         /// <summary>
         /// allocate total possible memory from the get go for all points
@@ -56,7 +46,7 @@ namespace NodeDirectedFuelMap
             lock (firstOpenLock)
             {
                 //include the corners array in buffered data
-                var actualLength = cornerSpace + maxActiveCount * pointSize;
+                var actualLength = maxActiveCount * pointSize;
 
                 points = new float[actualLength];
                 ActiveNeurons = new Neuron[actualLength];//empty pointers in the array are fine. they cost a lot less than translation math for every change for every frame
@@ -68,10 +58,10 @@ namespace NodeDirectedFuelMap
                 //abstract this line class to simplify that. this is an easy one to abstract and abstract should be compile time so no added cost
 
                 //copy corners to buffered data. probably static, but we'll see
-                for (int i = 0; i < cornerSpace; i++)
-                    points[i] = QuadCorners[i];
+                //for (int i = 0; i < cornerSpace; i++)
+                //    points[i] = QuadCorners[i];
 
-                firstOpenSpace = cornerSpace;
+                //firstOpenSpace = cornerSpace;
                         Console.WriteLine($"first open point is now {firstOpenSpace}");
             }
         }
@@ -188,7 +178,7 @@ namespace NodeDirectedFuelMap
             }
             public override bool Equals(object obj)
             {
-                return obj is PointIndex p && p.pointIndex == pointIndex || obj is int i && i + cornerSpace == pointIndex;
+                return obj is PointIndex p && p.pointIndex == pointIndex || obj is int i && i == pointIndex;
             }
         }
 

@@ -51,6 +51,16 @@ namespace NodeDirectedFuelMap
             ManipulatedLines.Allocate(count*9);
         }
 
+
+        private const float half = .5f;
+        private const float circleScale = half;
+        public static float[] QuadCorners = new float[]
+        {
+            -circleScale,  circleScale, 0.0f,  //Top-left vertex
+            -circleScale, -circleScale, 0.0f,  //Bottom-left vertex
+             circleScale,  circleScale, 0.0f,  //Top-right vertex
+             circleScale, -circleScale, 0.0f,  //Bottom-right vertex
+        };
         static int count = 10000;
         static float overlap = 9f;
         static float RefuelRate = .01f;
@@ -130,8 +140,9 @@ namespace NodeDirectedFuelMap
 
             // 2. copy our vertices array in a buffer for OpenGL to use
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
-            GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
-            //GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)0, QuadCorners.Length * sizeof(float), QuadCorners);
+            GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float) + QuadCorners.Length * sizeof(float), (IntPtr)null, BufferUsageHint.DynamicDraw);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)0, QuadCorners.Length * sizeof(float), QuadCorners);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.points.Length * sizeof(float), points.points);
 
             TwoTriangleElementBuffer = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
@@ -170,19 +181,19 @@ namespace NodeDirectedFuelMap
                 var lineCount = ManipulatedLines.LineCount;
                 for (int i = 0; i < 2; i++)
                 {
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8 + ManipulatePoints.cornerSpace;//deactivate point. lowers pointcount by one
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate point. lowers pointcount by one
                 }
                 for (int i = 0; i < 50000; i++)
                 {
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8 + ManipulatePoints.cornerSpace;//deactivate. lowers point count by one
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8 + ManipulatePoints.cornerSpace;//update. no effect on point count
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8 + ManipulatePoints.cornerSpace;//update. no effect on point count
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate. lowers point count by one
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
                     //activate points called here. increases point count by one
                 }
 
                 for (int i = 0; i < 5000; i++)
                 { 
-                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 2))) * 8+ ManipulatePoints.cornerSpace;
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 2))) * 8;
                 }
 
                 iIndex = 0;
@@ -287,9 +298,7 @@ namespace NodeDirectedFuelMap
             }
             //update point data set
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer); 
-            GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
-            //GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)0, QuadCorners.Length * sizeof(float), ManipulatePoints.QuadCorners);
-            //GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.points.Length * sizeof(float), points.points);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.points.Length * sizeof(float), points.points);
             
             //update line data set
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);

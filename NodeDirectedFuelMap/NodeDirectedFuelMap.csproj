@@ -46,7 +46,7 @@
     <None Update="3.fuel taken percent(create activation pool)\SomeMinFrag.frag">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="2.subtract fuel\SomeSubtractAndAddFrag.frag">
+    <None Update="2.subtract fuel\SubtractFrag.frag">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="4.remove negative fuel pool values\SomeZeroingFrag.frag">

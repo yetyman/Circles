@@ -33,10 +33,10 @@ namespace NodeDirectedFuelMap
         public const float DefaultNodeCreationIntensity = MinimumIntensity;
 
         public const int pointSize = 8;
-        public static int cornerSpace => circleCorners.Length;
+        public static int cornerSpace => QuadCorners.Length;
         public int allocatedSpace => points.Length;
         public int PointCount => (firstOpenSpace - cornerSpace - 1) / pointSize;
-        public static float[] circleCorners = new float[]
+        public static float[] QuadCorners = new float[]
         {
             -circleScale,  circleScale, 0.0f,  //Top-left vertex
             -circleScale, -circleScale, 0.0f,  //Bottom-left vertex
@@ -69,7 +69,7 @@ namespace NodeDirectedFuelMap
 
                 //copy corners to buffered data. probably static, but we'll see
                 for (int i = 0; i < cornerSpace; i++)
-                    points[i] = circleCorners[i];
+                    points[i] = QuadCorners[i];
 
                 firstOpenSpace = cornerSpace;
                         Console.WriteLine($"first open point is now {firstOpenSpace}");

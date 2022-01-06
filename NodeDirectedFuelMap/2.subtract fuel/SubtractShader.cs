@@ -8,7 +8,7 @@ using System.Text;
 
 namespace NodeDirectedFuelMap
 {
-    class SomeSubtractAndAddShader
+    class SubtractShader
     {
         int Handle;
         Stopwatch _timer;
@@ -20,7 +20,7 @@ namespace NodeDirectedFuelMap
         public int SubtractTexture { get; private set; }
         public int AddValueLocation { get; private set; }
         public float AddValue { get; set; }
-        public SomeSubtractAndAddShader(string vertexPath, string fragmentPath, int fromTexture, int subtractTexture, float addValue)
+        public SubtractShader(string vertexPath, string fragmentPath, int fromTexture, int subtractTexture, float addValue)
         {
             _timer = new Stopwatch();
             string VertexShaderSource;
@@ -137,7 +137,7 @@ namespace NodeDirectedFuelMap
             }
         }
 
-        ~SomeSubtractAndAddShader()
+        ~SubtractShader()
         {
             GL.DeleteProgram(Handle);
         }

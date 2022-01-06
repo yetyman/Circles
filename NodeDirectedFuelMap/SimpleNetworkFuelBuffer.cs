@@ -31,7 +31,7 @@ namespace NodeDirectedFuelMap
 
         BlurryCircleShader Step1CreateFuelRequestShader;
         MultiColorLineShader RenderLinesShader;
-        SomeSubtractAndAddShader Step2TakeFuelShader;//take pool and request, regen pool?, subtract request from pool. 
+        SubtractShader Step2TakeFuelShader;//take pool and request, regen pool?, subtract request from pool. 
         SomeMinAndDivideShader Step3PercentFuelTakenShader;//take request and pool, generate used amount from request and pool.
         SomeZeroingShader Step4FuelPoolZeroingShader;//take pool, set negatives to zero
         MaxMipMapShader Step5CalculateActivationsShader;//find the maximum activation level. well actually max activation optimized with max available fuel
@@ -110,7 +110,7 @@ namespace NodeDirectedFuelMap
             PointVertexArrayBuffer = GL.GenBuffer();//make triangle object
 
             Step1CreateFuelRequestShader = new BlurryCircleShader(ClientSize, "1.DrawCircles\\CircleLayerShader.vert", "1.DrawCircles\\CircleShader.frag");
-            Step2TakeFuelShader = new SomeSubtractAndAddShader("ScreenTriangle.vert", "2.subtract fuel\\SomeSubtractAndAddFrag.frag", FuelPoolTexture, FuelRequestTexture, .01f);
+            Step2TakeFuelShader = new SubtractShader("ScreenTriangle.vert", "2.subtract fuel\\SubtractFrag.frag", FuelPoolTexture, FuelRequestTexture, .01f);
             Step3PercentFuelTakenShader = new SomeMinAndDivideShader("ScreenTriangle.vert", "3.fuel taken percent(create activation pool)\\SomeMinFrag.frag", FuelPoolTexture, FuelRequestTexture);
             Step4FuelPoolZeroingShader = new SomeZeroingShader("ScreenTriangle.vert", "4.remove negative fuel pool values\\SomeZeroingFrag.frag", FuelPoolTexture);
             Step5CalculateActivationsShader = new MaxMipMapShader("6.maximums\\MaxMipMap.compute", FuelPoolTexture, FuelRequestTexture);//TODO: this should actually be the growth potential texture, which is activation level * remainingfuel(fuelpool) where activation level = fuelused/fuelrequested*circleActivationEnergyLevel... but for testing this can be an already rendered image first to make sure the mipmap looks right
@@ -131,6 +131,7 @@ namespace NodeDirectedFuelMap
             // 2. copy our vertices array in a buffer for OpenGL to use
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
             GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
+            //GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)0, QuadCorners.Length * sizeof(float), QuadCorners);
 
             TwoTriangleElementBuffer = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
@@ -285,9 +286,11 @@ namespace NodeDirectedFuelMap
                 ;
             }
             //update point data set
-            GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer); 
             GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float), points.points, BufferUsageHint.DynamicDraw);
-
+            //GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)0, QuadCorners.Length * sizeof(float), ManipulatePoints.QuadCorners);
+            //GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.points.Length * sizeof(float), points.points);
+            
             //update line data set
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
             GL.BufferData(BufferTarget.ElementArrayBuffer, ManipulatedLines.LineCount * 2 * sizeof(uint), ManipulatedLines.lines, BufferUsageHint.DynamicDraw);

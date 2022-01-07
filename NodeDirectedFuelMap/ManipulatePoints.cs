@@ -45,7 +45,6 @@ namespace NodeDirectedFuelMap
 
             lock (firstOpenLock)
             {
-                //include the corners array in buffered data
                 var actualLength = maxActiveCount * pointSize;
 
                 points = new float[actualLength];
@@ -57,11 +56,6 @@ namespace NodeDirectedFuelMap
                 //change inactive neurons to an array and start sending all of it to the gfx card every frame instead of just the active neurons. this will simplify the line shader, but also bring the math closer to what the shader version will need
                 //abstract this line class to simplify that. this is an easy one to abstract and abstract should be compile time so no added cost
 
-                //copy corners to buffered data. probably static, but we'll see
-                //for (int i = 0; i < cornerSpace; i++)
-                //    points[i] = QuadCorners[i];
-
-                //firstOpenSpace = cornerSpace;
                         Console.WriteLine($"first open point is now {firstOpenSpace}");
             }
         }
@@ -100,25 +94,14 @@ namespace NodeDirectedFuelMap
         {
             neuron.pointIndex = 0;
 
-            //while (waitingOnInactiveDic) ;
-            //waitingOnInactiveDic = true;
             InactiveNeurons.Add(neuron.UniqueId, neuron);
-            //waitingOnInactiveDic = false;
         }
-        bool waitingOnInactiveDic = false;
         public void MoveNeuronToActive(Neuron neuron, int index)
         {
-            //replacing slow lock with lighter and steadier while wait
-            //while (waitingOnInactiveDic) ;
-            //waitingOnInactiveDic = true;
             InactiveNeurons.Remove(neuron.UniqueId);
-            //waitingOnInactiveDic = false;
-
-            //lock (neuron)
-            //{
-                neuron.pointIndex = index;
-                ActiveNeurons[index] = neuron;
-            //}
+                
+            neuron.pointIndex = index;
+            ActiveNeurons[index] = neuron;
         }
         private static int NeuronIDs = 0;
         private Stack<Neuron> NeuronPool = new Stack<Neuron>();
@@ -154,7 +137,7 @@ namespace NodeDirectedFuelMap
         }
         public void MoveNeuron(int from, int to)
         {
-            Neuron n = null;
+            Neuron n;
 
             n = ActiveNeurons[from];
             ActiveNeurons[from] = null;//whenever this location is nulled, the data array ought to also be null at this location.
@@ -267,8 +250,6 @@ namespace NodeDirectedFuelMap
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DeactivatePoint(int index)
         {
-            //index += cornerSpace;
-
             MoveNeuronToUnused(ActiveNeurons[index]);
 
             //consolidate into continuous memory
@@ -315,8 +296,6 @@ namespace NodeDirectedFuelMap
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdatePoint(int index, float r1, float r2, float r3, float o1, float o2, float o3)
         {
-            //index += cornerSpace;
-
             points[index + 2] = r1;
             points[index + 3] = r2;
             points[index + 4] = r3;
@@ -328,15 +307,11 @@ namespace NodeDirectedFuelMap
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MovePoint(int index, float x, float y)
         {
-            //index += cornerSpace;
-
             points[index + 0] = x;
             points[index + 1] = y;
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
-            //index += cornerSpace;
-
             if (x.HasValue) points[index + 0] += x.Value;
             if (y.HasValue) points[index + 1] += y.Value;
             if (r1.HasValue) points[index + 2] += r1.Value;
@@ -354,7 +329,6 @@ namespace NodeDirectedFuelMap
             if (o1.HasValue) ActiveNeurons[index].ImpulseIntensity += o1.Value;
             if (o2.HasValue) ActiveNeurons[index].FuelIntensity += o2.Value;
             if (o3.HasValue) ActiveNeurons[index].NodeCreationIntensity += o3.Value;
-
         }
 
     }

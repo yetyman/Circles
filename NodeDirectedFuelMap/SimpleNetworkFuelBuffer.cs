@@ -17,7 +17,7 @@ namespace NodeDirectedFuelMap
     {
         int PointVertexArrayBuffer;
         int PointArrayObject;
-        int TwoTriangleElementBuffer;//squares
+        int QuadElementBuffer;//squares
         int LineIndexesElementBuffer;//line indexes
 
         int FuelPoolBuffer;
@@ -144,8 +144,8 @@ namespace NodeDirectedFuelMap
             GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)0, QuadCorners.Length * sizeof(float), QuadCorners);
             GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.points.Length * sizeof(float), points.points);
 
-            TwoTriangleElementBuffer = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
+            CommonPatterns.QuadElementBuffer = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, CommonPatterns.QuadElementBuffer);
             GL.BufferData(BufferTarget.ElementArrayBuffer, indices.Length * sizeof(uint), indices, BufferUsageHint.StaticDraw);
             
             LineIndexesElementBuffer = GL.GenBuffer();
@@ -385,25 +385,6 @@ namespace NodeDirectedFuelMap
         public void RequestFuel()
         {
 
-            // 3. then set our vertex attributes pointers
-            //which attribute are we settings, how many is it, what is each it?, should it be normalized?, what's the total size?,
-            //TODO: i may not want to normalize
-
-            GL.VertexAttribPointer(Step1CreateFuelRequestShader.PositionLocation, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 12 * sizeof(float));
-            GL.EnableVertexAttribArray(Step1CreateFuelRequestShader.PositionLocation);
-            GL.VertexAttribPointer(Step1CreateFuelRequestShader.SizeLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 14 * sizeof(float));
-            GL.EnableVertexAttribArray(Step1CreateFuelRequestShader.SizeLocation);
-            GL.VertexAttribPointer(Step1CreateFuelRequestShader.OpacityLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 17 * sizeof(float));
-            GL.EnableVertexAttribArray(Step1CreateFuelRequestShader.OpacityLocation);
-            GL.VertexAttribPointer(Step1CreateFuelRequestShader.SquareCornerLocation, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
-            GL.EnableVertexAttribArray(Step1CreateFuelRequestShader.SquareCornerLocation);
-
-            GL.VertexAttribDivisor(Step1CreateFuelRequestShader.PositionLocation, 1);//use from start to end, based on instance id instead of vertex index
-            GL.VertexAttribDivisor(Step1CreateFuelRequestShader.SizeLocation, 1);
-            GL.VertexAttribDivisor(Step1CreateFuelRequestShader.OpacityLocation, 1);
-            GL.VertexAttribDivisor(Step1CreateFuelRequestShader.SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
-
             //PoolMinMax[1] = FuelZeroingShader.Average;
 
             //create request pool buffer
@@ -447,11 +428,14 @@ namespace NodeDirectedFuelMap
             CheckGPUErrors("Error rendering to min fuel pool float buffer:");
 
             //get average value in the fuel pool, used to set refill rate for next frame
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, CommonPatterns.QuadElementBuffer);
             Step4FuelPoolZeroingShader.Use();
             Step4FuelPoolZeroingShader.CheckAverage(ClientSize.X, ClientSize.Y);
 
             //gets the level of activation to be added for the next pass's activation propogation
+            //we'll multiply the FuelPoolBuffer(an indicator for whether there is enough fuel available in a given area for activation to occur) with the fuel request buffer. 
+            //Then we'll find the maximum areas for where a new neuron might be created. 
+            //FUTURE: in the future this may separate so that new neuron creation is based on a different set of radiation values than neuron activation and at that point, the new neuron creation probability map would simply be the fuel available buffer multiplied by that radiation buffer
             var maximumValues = Step5CalculateActivationsShader.Use();//later this will be used for new neuron creation
             CheckGPUErrors("Error rendering to activation buffer:");
 
@@ -521,7 +505,7 @@ namespace NodeDirectedFuelMap
 
         public void RenderInstrumentation()
         {
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, TwoTriangleElementBuffer);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, CommonPatterns.QuadElementBuffer);
             //draw float buffer from texture to back buffer. one call for each one we'd like to display
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 

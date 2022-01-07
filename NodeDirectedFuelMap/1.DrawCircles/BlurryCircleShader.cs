@@ -107,6 +107,23 @@ namespace NodeDirectedFuelMap
         }
         public void Use()
         {
+
+            // 3. then set our vertex attributes pointers
+            GL.VertexAttribPointer(PositionLocation, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 12 * sizeof(float));//+12 offset for the quad corners
+            GL.EnableVertexAttribArray(PositionLocation);
+            GL.VertexAttribPointer(SizeLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 14 * sizeof(float));
+            GL.EnableVertexAttribArray(SizeLocation);
+            GL.VertexAttribPointer(OpacityLocation, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 17 * sizeof(float));
+            GL.EnableVertexAttribArray(OpacityLocation);
+            GL.VertexAttribPointer(SquareCornerLocation, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+            GL.EnableVertexAttribArray(SquareCornerLocation);
+
+            GL.VertexAttribDivisor(PositionLocation, 1);//use from start to end, based on instance id instead of vertex index
+            GL.VertexAttribDivisor(SizeLocation, 1);
+            GL.VertexAttribDivisor(OpacityLocation, 1);
+            GL.VertexAttribDivisor(SquareCornerLocation, 0);//use from start to end, based on vertex index within instance
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, CommonPatterns.QuadElementBuffer);
+            
             GL.UseProgram(Handle);
             GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
             GL.BlendEquation(BlendEquationMode.FuncAdd);

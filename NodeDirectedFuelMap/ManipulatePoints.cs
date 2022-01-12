@@ -15,10 +15,12 @@ namespace NodeDirectedFuelMap
         //this will like be the first bottleneck to overcome as the graph becomes functional
 
 
-        public float[] points;
+        public float[] Points;
+        public float[] InactivePoints;
         public Neuron[] ActiveNeurons;
-        public int firstOpenSpace = 0;
-        public object firstOpenLock = new object();
+        public Neuron[] InactiveNeurons;
+        protected int firstOpenSpace = 0;
+        public int firstOpenInactiveSpace = 0;
 
 
         public const float MinimumRadius = .01f;
@@ -31,33 +33,36 @@ namespace NodeDirectedFuelMap
         public const float DefaultNodeCreationIntensity = MinimumIntensity;
 
         public const int pointSize = 8;
-        public int allocatedSpace => points.Length;
+        public int allocatedSpace => Points.Length;
         public int PointCount => (firstOpenSpace - 1) / pointSize;
 
+        private int maxActiveCount;
+        private int maxUnusedCount;
+        private int maxPointCount;
         /// <summary>
         /// allocate total possible memory from the get go for all points
         /// </summary>
         /// <param name="maxPointCount"></param>
         public void Allocate(int maxPointCount)
         {
-            var maxActiveCount = maxPointCount / 100;
-            var maxUnusedCount = maxPointCount - maxActiveCount;
+            this.maxPointCount = maxPointCount;
+            maxActiveCount = maxPointCount / 100;
+            maxUnusedCount = maxPointCount;
 
-            lock (firstOpenLock)
-            {
-                var actualLength = maxActiveCount * pointSize;
+            var actualLength = maxActiveCount * pointSize;
+            var actualMaxLength = maxUnusedCount * pointSize;
 
-                points = new float[actualLength];
-                ActiveNeurons = new Neuron[actualLength];//empty pointers in the array are fine. they cost a lot less than translation math for every change for every frame
-                for (int i = 0; i < maxPointCount; i++)
-                    NeuronPool.Push(new Neuron() { UniqueId = NeuronIDs++ });
+            Points = new float[actualLength];
+            InactivePoints = new float[actualMaxLength];
+            ActiveNeurons = new Neuron[actualLength];//empty pointers in the array are fine. they cost a lot less than translation math for every change for every frame
+            InactiveNeurons = new Neuron[maxUnusedCount];//empty pointers in the array are fine. they probably cost a lot less than translation math for every change for every frame
+            for (int i = 0; i < maxPointCount; i++)
+                NeuronPool.Push(new Neuron() { UniqueId = NeuronIDs++ });
 
-                InactiveNeurons = new Dictionary<int, Neuron>(maxUnusedCount);
-                //change inactive neurons to an array and start sending all of it to the gfx card every frame instead of just the active neurons. this will simplify the line shader, but also bring the math closer to what the shader version will need
-                //abstract this line class to simplify that. this is an easy one to abstract and abstract should be compile time so no added cost
+            //change inactive neurons to an array and start sending all of it to the gfx card every frame instead of just the active neurons. this will simplify the line shader, but also bring the math closer to what the shader version will need
+            //abstract this line class to simplify that. this is an easy one to abstract and abstract should be compile time so no added cost
 
-                        Console.WriteLine($"first open point is now {firstOpenSpace}");
-            }
+            Console.WriteLine($"first open point is now {firstOpenSpace}");
         }
 
         public class Neuron
@@ -92,16 +97,55 @@ namespace NodeDirectedFuelMap
         }
         public void MoveNeuronToUnused(Neuron neuron)
         {
-            neuron.pointIndex = 0;
+            neuron.pointIndex = firstOpenInactiveSpace;
 
-            InactiveNeurons.Add(neuron.UniqueId, neuron);
+            //set inactive neuron but also set values in the array that we need
+            InactiveNeurons[firstOpenInactiveSpace] = neuron;
+
+            InactivePoints[firstOpenInactiveSpace] = neuron.X;
+            InactivePoints[firstOpenInactiveSpace+1] = neuron.Y;
+            //InactivePoints[firstOpenInactiveSpace+2] = neuron.ImpulseRadius;//probably don't need to update these since inactive point's radiation wont matter
+            //InactivePoints[firstOpenInactiveSpace+3] = neuron.FuelRadius;
+            //InactivePoints[firstOpenInactiveSpace+4] = neuron.NodeCreationRadius;
+            //InactivePoints[firstOpenInactiveSpace+5] = neuron.ImpulseIntensity;
+            //InactivePoints[firstOpenInactiveSpace+6] = neuron.FuelIntensity;
+            //InactivePoints[firstOpenInactiveSpace+7] = neuron.NodeCreationIntensity;
+
+            firstOpenInactiveSpace += pointSize;
+
         }
         public void MoveNeuronToActive(Neuron neuron, int index)
         {
-            InactiveNeurons.Remove(neuron.UniqueId);
-                
+            firstOpenInactiveSpace -= pointSize;
+            //remove from object cache
+            //replace with first open
+            InactiveNeurons[neuron.pointIndex] = InactiveNeurons[firstOpenInactiveSpace];//-maxActiveCount]
+            InactiveNeurons[neuron.pointIndex].pointIndex = neuron.pointIndex; 
+            //remove from primitive cache
+            //replace with first open
+            InactivePoints[neuron.pointIndex] = InactivePoints[firstOpenInactiveSpace];
+            InactivePoints[neuron.pointIndex + 1] = InactivePoints[firstOpenInactiveSpace + 1];
+
+            InactiveNeurons[firstOpenInactiveSpace] = null;
+
             neuron.pointIndex = index;
             ActiveNeurons[index] = neuron;
+        }
+        public void MoveNewNeuronToActive(Neuron neuron, int index)
+        {
+            neuron.pointIndex = index;
+            ActiveNeurons[index] = neuron;
+        }
+        public void DeleteNeuron(Neuron n)
+        {
+            firstOpenInactiveSpace -= pointSize;
+            InactiveNeurons[n.pointIndex] = InactiveNeurons[firstOpenInactiveSpace];
+            InactiveNeurons[n.pointIndex].pointIndex = n.pointIndex;
+
+            InactivePoints[n.pointIndex] = InactivePoints[firstOpenInactiveSpace];
+            InactivePoints[n.pointIndex + 1] = InactivePoints[firstOpenInactiveSpace + 1];
+
+            InactiveNeurons[firstOpenInactiveSpace] = null;
         }
         private static int NeuronIDs = 0;
         private Stack<Neuron> NeuronPool = new Stack<Neuron>();
@@ -131,10 +175,6 @@ namespace NodeDirectedFuelMap
 
             return n;
         }
-        public void DeleteNeuron(Neuron n)
-        {
-            InactiveNeurons.Remove(n.UniqueId);
-        }
         public void MoveNeuron(int from, int to)
         {
             Neuron n;
@@ -146,24 +186,6 @@ namespace NodeDirectedFuelMap
             ActiveNeurons[to].pointIndex = to;
         }
 
-        public Dictionary<int, Neuron> InactiveNeurons;
-        /// <summary>
-        /// just wrapping for reference passing
-        /// </summary>
-        public class PointIndex
-        {
-            public int pointIndex;
-            public int references = 1;
-            public object secondaryLock = new object();
-            public override int GetHashCode()
-            {
-                return pointIndex.GetHashCode();
-            }
-            public override bool Equals(object obj)
-            {
-                return obj is PointIndex p && p.pointIndex == pointIndex || obj is int i && i == pointIndex;
-            }
-        }
 
         /// <summary>
         /// a few a frame, relatively rare, but no where near as rare as removes
@@ -191,16 +213,16 @@ namespace NodeDirectedFuelMap
             firstOpenSpace += pointSize;
 
             var n = CreateNeuron(x, y, r1, r2, r3, o1, o2, o3);
-            MoveNeuronToActive(n, lp);
+            MoveNewNeuronToActive(n, lp);
 
-            points[lp + 0] = x;//position1
-            points[lp + 1] = y;//position2
-            points[lp + 2] = r1.Value;//size1
-            points[lp + 3] = r2.Value;//size2
-            points[lp + 4] = r3.Value;//size3
-            points[lp + 5] = o1.Value;//opacity1
-            points[lp + 6] = o2.Value;//opacity2
-            points[lp + 7] = o3.Value;//opacity3
+            Points[lp + 0] = x;//position1
+            Points[lp + 1] = y;//position2
+            Points[lp + 2] = r1.Value;//size1
+            Points[lp + 3] = r2.Value;//size2
+            Points[lp + 4] = r3.Value;//size3
+            Points[lp + 5] = o1.Value;//opacity1
+            Points[lp + 6] = o2.Value;//opacity2
+            Points[lp + 7] = o3.Value;//opacity3
         }
 
         /// <summary>
@@ -222,14 +244,14 @@ namespace NodeDirectedFuelMap
 
             MoveNeuronToActive(neuron, lp);
 
-            points[lp + 0] = neuron.X;//position1
-            points[lp + 1] = neuron.Y;//position2
-            points[lp + 2] = neuron.ImpulseRadius;//size1
-            points[lp + 3] = neuron.FuelRadius;//size2
-            points[lp + 4] = neuron.NodeCreationRadius;//size3
-            points[lp + 5] = neuron.ImpulseIntensity;//opacity1
-            points[lp + 6] = neuron.FuelIntensity;//opacity2
-            points[lp + 7] = neuron.NodeCreationIntensity;//opacity3
+            Points[lp + 0] = neuron.X;//position1
+            Points[lp + 1] = neuron.Y;//position2
+            Points[lp + 2] = neuron.ImpulseRadius;//size1
+            Points[lp + 3] = neuron.FuelRadius;//size2
+            Points[lp + 4] = neuron.NodeCreationRadius;//size3
+            Points[lp + 5] = neuron.ImpulseIntensity;//opacity1
+            Points[lp + 6] = neuron.FuelIntensity;//opacity2
+            Points[lp + 7] = neuron.NodeCreationIntensity;//opacity3
 
         }
 
@@ -261,9 +283,9 @@ namespace NodeDirectedFuelMap
                 //weird optimisation, i can get away with only setting size or opacity to zero here. its never checked, we just don't want it to do anything in the next rendering pass
                 //points[index + 0] = 0;//position1
                 //points[index + 1] = 0;//position2
-                points[index + 2] = 0;//size1
-                points[index + 3] = 0;//size2
-                points[index + 4] = 0;//size3
+                Points[index + 2] = 0;//size1
+                Points[index + 3] = 0;//size2
+                Points[index + 4] = 0;//size3
                 //points[index + 5] = 0;//opacity1
                 //points[index + 6] = 0;//opacity2
                 //points[index + 7] = 0;//opacity3
@@ -276,14 +298,14 @@ namespace NodeDirectedFuelMap
             }
             else
             {
-                points[index + 0] = points[lp + 0];//position1
-                points[index + 1] = points[lp + 1];//position2
-                points[index + 2] = points[lp + 2];//size1
-                points[index + 3] = points[lp + 3];//size2
-                points[index + 4] = points[lp + 4];//size3
-                points[index + 5] = points[lp + 5];//opacity1
-                points[index + 6] = points[lp + 6];//opacity2
-                points[index + 7] = points[lp + 7];//opacity3
+                Points[index + 0] = Points[lp + 0];//position1
+                Points[index + 1] = Points[lp + 1];//position2
+                Points[index + 2] = Points[lp + 2];//size1
+                Points[index + 3] = Points[lp + 3];//size2
+                Points[index + 4] = Points[lp + 4];//size3
+                Points[index + 5] = Points[lp + 5];//opacity1
+                Points[index + 6] = Points[lp + 6];//opacity2
+                Points[index + 7] = Points[lp + 7];//opacity3
 
                 MoveNeuron(lp, index);
 
@@ -296,39 +318,30 @@ namespace NodeDirectedFuelMap
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdatePoint(int index, float r1, float r2, float r3, float o1, float o2, float o3)
         {
-            points[index + 2] = r1;
-            points[index + 3] = r2;
-            points[index + 4] = r3;
-            points[index + 5] = o1;
-            points[index + 6] = o2;
-            points[index + 7] = o3;
+            Points[index + 2] = r1;
+            Points[index + 3] = r2;
+            Points[index + 4] = r3;
+            Points[index + 5] = o1;
+            Points[index + 6] = o2;
+            Points[index + 7] = o3;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MovePoint(int index, float x, float y)
         {
-            points[index + 0] = x;
-            points[index + 1] = y;
+            Points[index + 0] = x;
+            Points[index + 1] = y;
         }
         public void UpdatePointRel(int index, float? x = null, float? y = null, float? r1 = null, float? r2 = null, float? r3 = null, float? o1 = null, float? o2 = null, float? o3 = null)
         {
-            if (x.HasValue) points[index + 0] += x.Value;
-            if (y.HasValue) points[index + 1] += y.Value;
-            if (r1.HasValue) points[index + 2] += r1.Value;
-            if (r2.HasValue) points[index + 3] += r2.Value;
-            if (r3.HasValue) points[index + 4] += r3.Value;
-            if (o1.HasValue) points[index + 5] += o1.Value;
-            if (o2.HasValue) points[index + 6] += o2.Value;
-            if (o3.HasValue) points[index + 7] += o3.Value;
-
-            if (x.HasValue) ActiveNeurons[index].X += x.Value;
-            if (y.HasValue) ActiveNeurons[index].Y += y.Value;
-            if (r1.HasValue) ActiveNeurons[index].ImpulseRadius += r1.Value;
-            if (r2.HasValue) ActiveNeurons[index].FuelRadius += r2.Value;
-            if (r3.HasValue) ActiveNeurons[index].NodeCreationRadius += r3.Value;
-            if (o1.HasValue) ActiveNeurons[index].ImpulseIntensity += o1.Value;
-            if (o2.HasValue) ActiveNeurons[index].FuelIntensity += o2.Value;
-            if (o3.HasValue) ActiveNeurons[index].NodeCreationIntensity += o3.Value;
+            if (x.HasValue) Points[index + 0] += x.Value;
+            if (y.HasValue) Points[index + 1] += y.Value;
+            if (r1.HasValue) Points[index + 2] += r1.Value;
+            if (r2.HasValue) Points[index + 3] += r2.Value;
+            if (r3.HasValue) Points[index + 4] += r3.Value;
+            if (o1.HasValue) Points[index + 5] += o1.Value;
+            if (o2.HasValue) Points[index + 6] += o2.Value;
+            if (o3.HasValue) Points[index + 7] += o3.Value;
         }
 
     }

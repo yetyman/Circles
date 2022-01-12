@@ -142,7 +142,7 @@ namespace NodeDirectedFuelMap
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
             GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float) + QuadCorners.Length * sizeof(float), (IntPtr)null, BufferUsageHint.DynamicDraw);
             GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)0, QuadCorners.Length * sizeof(float), QuadCorners);
-            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.points.Length * sizeof(float), points.points);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.Points.Length * sizeof(float), points.Points);
 
             CommonPatterns.QuadElementBuffer = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, CommonPatterns.QuadElementBuffer);
@@ -153,7 +153,8 @@ namespace NodeDirectedFuelMap
             GL.BufferData(BufferTarget.ElementArrayBuffer, ManipulatedLines.LineCount*2 * sizeof(uint), ManipulatedLines.lines, BufferUsageHint.DynamicDraw);
             
             CheckGPUErrors("Error Loading before Float Buffer");//just in case
-
+            
+            Rand.Rand(50000 * 50);
             //new Thread(ProcessingLoopFake).Start();
             base.OnLoad();
         }
@@ -161,7 +162,7 @@ namespace NodeDirectedFuelMap
         
         RandomHelper86 Rand = new RandomHelper86();
         float[] randomValues = new float[50000 * 50];
-        int[] randomInts = new int[2+4*50000];
+        int[] randomInts = new int[2+5*50000];
 
         private void UpdateLocationRandomTestData()
         {
@@ -178,20 +179,23 @@ namespace NodeDirectedFuelMap
 
                 //separating out all the random integer casting for profiling and optimization
                 var pointCount = points.PointCount;
+                var inactivePointCount = points.firstOpenInactiveSpace/8-1;
                 var lineCount = ManipulatedLines.LineCount;
                 for (int i = 0; i < 2; i++)
                 {
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate point. lowers pointcount by one
                 }
+                ;
                 for (int i = 0; i < 50000; i++)
                 {
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1) + 1)) * 8;//deactivate. lowers point count by one
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 1))) * 8;//update. no effect on point count
+                    randomInts[iIndex++] = ((int)(randomValues[x++] * (inactivePointCount))) * 8;//activated point. increases point count by one
                     //activate points called here. increases point count by one
                 }
-
-                for (int i = 0; i < 5000; i++)
+                ;
+                for (int i = 0; i < 10000; i++)
                 { 
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 2))) * 8;
                 }
@@ -225,7 +229,7 @@ namespace NodeDirectedFuelMap
                 //    points.DeleteNeuron((Neuron)points.InactiveNeurons[neuronindex]);
                 //}
 
-
+                 ;
                 for (int i = 0; i < 50000; i++)
                 {
 
@@ -249,10 +253,11 @@ namespace NodeDirectedFuelMap
                     );
 
 
-                    points.ActivatePoint(points.InactiveNeurons.First().Value);
+                    points.ActivatePoint(points.InactiveNeurons[randomInts[iIndex++]]);
 
                 }
 
+                ;
                 //add some lines to the neurons
                 for (int i = 0; i < 3; i++)
                 {
@@ -262,13 +267,15 @@ namespace NodeDirectedFuelMap
                 }
                 //remove some lines from the neurons to keep it even
                 if (ManipulatedLines.LineCount > 50000)
-                    for (int i = 0; i < 3;)
-                        if (randomInts.Length > ++iIndex && points.ActiveNeurons[randomInts[iIndex]].To.Any())
+                {
+                    int i = 0;
+                    while (i < 3)
+                        if (randomInts.Length > ++iIndex && points.ActiveNeurons[randomInts[iIndex]].To.Count() > 0)
                         {
                             points.ActiveNeurons[randomInts[iIndex]].To.RemoveAt(0);
                             i++;
                         }
-
+                }
                 //set all the lines
                 var g = ManipulatedLines.LineCount;
                 int j = 0;
@@ -298,7 +305,7 @@ namespace NodeDirectedFuelMap
             }
             //update point data set
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer); 
-            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.points.Length * sizeof(float), points.points);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.Points.Length * sizeof(float), points.Points);
             
             //update line data set
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);

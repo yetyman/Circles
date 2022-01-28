@@ -32,25 +32,26 @@ namespace NodeDirectedFuelMap
         public const float DefaultFuelIntensity = MinimumIntensity;
         public const float DefaultNodeCreationIntensity = MinimumIntensity;
 
-        public const int pointSize = 8;
+        public const int PointSize = 8;
         public int allocatedSpace => Points.Length;
-        public int PointCount => (firstOpenSpace - 1) / pointSize;
+        public int PointCount => (firstOpenSpace - 1) / PointSize;
+        public int InactivePointCount => (firstOpenInactiveSpace - 1) / PointSize;
 
         private int maxActiveCount;
         private int maxUnusedCount;
-        private int maxPointCount;
+        public int MaxPointCount;
         /// <summary>
         /// allocate total possible memory from the get go for all points
         /// </summary>
         /// <param name="maxPointCount"></param>
         public void Allocate(int maxPointCount)
         {
-            this.maxPointCount = maxPointCount;
+            this.MaxPointCount = maxPointCount;
             maxActiveCount = maxPointCount / 100;
             maxUnusedCount = maxPointCount;
 
-            var actualLength = maxActiveCount * pointSize;
-            var actualMaxLength = maxUnusedCount * pointSize;
+            var actualLength = maxActiveCount * PointSize;
+            var actualMaxLength = maxUnusedCount * PointSize;
 
             Points = new float[actualLength];
             InactivePoints = new float[actualMaxLength];
@@ -82,6 +83,9 @@ namespace NodeDirectedFuelMap
             public List<Neuron> To = new List<Neuron>();
             public List<Neuron> From = new List<Neuron>();
 
+
+            public bool Active { get; internal set; }
+
             public override int GetHashCode()
             {
                 return UniqueId;
@@ -98,6 +102,7 @@ namespace NodeDirectedFuelMap
         public void MoveNeuronToUnused(Neuron neuron)
         {
             neuron.pointIndex = firstOpenInactiveSpace;
+            neuron.Active = false;
 
             //set inactive neuron but also set values in the array that we need
             InactiveNeurons[firstOpenInactiveSpace] = neuron;
@@ -111,12 +116,12 @@ namespace NodeDirectedFuelMap
             //InactivePoints[firstOpenInactiveSpace+6] = neuron.FuelIntensity;
             //InactivePoints[firstOpenInactiveSpace+7] = neuron.NodeCreationIntensity;
 
-            firstOpenInactiveSpace += pointSize;
+            firstOpenInactiveSpace += PointSize;
 
         }
         public void MoveNeuronToActive(Neuron neuron, int index)
         {
-            firstOpenInactiveSpace -= pointSize;
+            firstOpenInactiveSpace -= PointSize;
             //remove from object cache
             //replace with first open
             InactiveNeurons[neuron.pointIndex] = InactiveNeurons[firstOpenInactiveSpace];//-maxActiveCount]
@@ -128,6 +133,7 @@ namespace NodeDirectedFuelMap
 
             InactiveNeurons[firstOpenInactiveSpace] = null;
 
+            neuron.Active = true;
             neuron.pointIndex = index;
             ActiveNeurons[index] = neuron;
         }
@@ -138,7 +144,7 @@ namespace NodeDirectedFuelMap
         }
         public void DeleteNeuron(Neuron n)
         {
-            firstOpenInactiveSpace -= pointSize;
+            firstOpenInactiveSpace -= PointSize;
             InactiveNeurons[n.pointIndex] = InactiveNeurons[firstOpenInactiveSpace];
             InactiveNeurons[n.pointIndex].pointIndex = n.pointIndex;
 
@@ -210,7 +216,7 @@ namespace NodeDirectedFuelMap
             if (!o3.HasValue) o3 = DefaultNodeCreationIntensity;
 
             int lp = firstOpenSpace;
-            firstOpenSpace += pointSize;
+            firstOpenSpace += PointSize;
 
             var n = CreateNeuron(x, y, r1, r2, r3, o1, o2, o3);
             MoveNewNeuronToActive(n, lp);
@@ -240,7 +246,7 @@ namespace NodeDirectedFuelMap
         public void ActivatePoint(Neuron neuron)
         {
             int lp = firstOpenSpace;
-            firstOpenSpace += pointSize;
+            firstOpenSpace += PointSize;
 
             MoveNeuronToActive(neuron, lp);
 
@@ -276,7 +282,7 @@ namespace NodeDirectedFuelMap
 
             //consolidate into continuous memory
 
-            int lp = firstOpenSpace - pointSize;
+            int lp = firstOpenSpace - PointSize;
             if (lp == index)
             {
 
@@ -311,7 +317,7 @@ namespace NodeDirectedFuelMap
 
                 //the last point has been moved back to somewhere else in memory
             }
-            firstOpenSpace -= pointSize;
+            firstOpenSpace -= PointSize;
             return;
         }
 

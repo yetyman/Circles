@@ -140,7 +140,7 @@ namespace NodeDirectedFuelMap
 
             // 2. copy our vertices array in a buffer for OpenGL to use
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer);
-            GL.BufferData(BufferTarget.ArrayBuffer, points.allocatedSpace * sizeof(float) + QuadCorners.Length * sizeof(float), (IntPtr)null, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, points.MaxPointCount * ManipulatePoints.PointSize * sizeof(float) + QuadCorners.Length * sizeof(float), (IntPtr)null, BufferUsageHint.DynamicDraw);
             GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)0, QuadCorners.Length * sizeof(float), QuadCorners);
             GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.Points.Length * sizeof(float), points.Points);
 
@@ -163,7 +163,7 @@ namespace NodeDirectedFuelMap
         RandomHelper86 Rand = new RandomHelper86();
         float[] randomValues = new float[50000 * 50];
         int[] randomInts = new int[2+5*50000];
-
+        int RoundRobinI = 0;
         private void UpdateLocationRandomTestData()
         {
             try
@@ -195,7 +195,7 @@ namespace NodeDirectedFuelMap
                     //activate points called here. increases point count by one
                 }
                 ;
-                for (int i = 0; i < 10000; i++)
+                for (int i = 0; i < 100; i++)
                 { 
                     randomInts[iIndex++] = ((int)(randomValues[x++] * (pointCount - 2))) * 8;
                 }
@@ -266,28 +266,39 @@ namespace NodeDirectedFuelMap
                     a.To.Add(b);
                 }
                 //remove some lines from the neurons to keep it even
+                int iii = 0;
                 if (ManipulatedLines.LineCount > 50000)
                 {
-                    int i = 0;
-                    while (i < 3)
-                        if (randomInts.Length > ++iIndex && points.ActiveNeurons[randomInts[iIndex]].To.Count() > 0)
+                    while (iii < 3)
+                    {
+                        if (RoundRobinI > points.PointCount)
+                            RoundRobinI = 0;
+                    
+                        var n = points.ActiveNeurons[RoundRobinI++ * ManipulatePoints.PointSize];
+                        if (n.To.Count() > 0)
                         {
-                            points.ActiveNeurons[randomInts[iIndex]].To.RemoveAt(0);
-                            i++;
+                            n.To.RemoveAt(0);
+                            iii++;
                         }
+                    }
                 }
                 //set all the lines
                 var g = ManipulatedLines.LineCount;
                 int j = 0;
-                for (int i = 0; i < points.ActiveNeurons.Count(); i++)
+                var activeNeurons = (points.PointCount+1) * ManipulatePoints.PointSize;
+                int plus = 0;
+                for (int i = 0; i < activeNeurons; i+=8)
                 {
-                    if (points.ActiveNeurons[i] == null) continue;
                     for (int h = 0; h < points.ActiveNeurons[i].To.Count(); h++)
                     {
+                        if (!points.ActiveNeurons[i].To[h].Active)
+                            plus = activeNeurons;
+                        else plus = 0;
+
                         if (j < g)
-                            ManipulatedLines.UpdateLine(j, points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex);//oops what if the point it points to isnt active, that wont make much sense. i think i need to cache ALL the point's locations, active or not on the gfx card, then just update the active list with its extra data often. or could all the points go on the gfx card? if 1 million of them would fit on it no problem in a single managable array then i'm game
+                            ManipulatedLines.UpdateLine(j, points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex+plus);//oops what if the point it points to isnt active, that wont make much sense. i think i need to cache ALL the point's locations, active or not on the gfx card, then just update the active list with its extra data often. or could all the points go on the gfx card? if 1 million of them would fit on it no problem in a single managable array then i'm game
                         else
-                            ManipulatedLines.AddLine(points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex);
+                            ManipulatedLines.AddLine(points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex+plus);
                         j++;
                     }
                 }
@@ -305,11 +316,17 @@ namespace NodeDirectedFuelMap
             }
             //update point data set
             GL.BindBuffer(BufferTarget.ArrayBuffer, PointVertexArrayBuffer); 
-            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.Points.Length * sizeof(float), points.Points);
-            
+            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)(QuadCorners.Length * sizeof(float)), points.PointCount * ManipulatePoints.PointSize * sizeof(float), points.Points);
+            CheckGPUErrors("Error Buffering Active points");
+
+            //update point data set
+            GL.BufferSubData(BufferTarget.ArrayBuffer, (IntPtr)((QuadCorners.Length + (points.PointCount+1) * ManipulatePoints.PointSize) * sizeof(float)), points.InactivePointCount*ManipulatePoints.PointSize * sizeof(float), points.InactivePoints);
+            CheckGPUErrors("Error Buffering Inactive points");
+
             //update line data set
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, LineIndexesElementBuffer);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, ManipulatedLines.LineCount * 2 * sizeof(uint), ManipulatedLines.lines, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, ManipulatedLines.LineCount * 2 * sizeof(int), ManipulatedLines.lines, BufferUsageHint.DynamicDraw);
+            CheckGPUErrors("Error Buffering Lines");
         }
         private void CheckFramebufferStatus(int requestBuffer)
         {
@@ -492,8 +509,9 @@ namespace NodeDirectedFuelMap
             RenderLinesShader.Use();
             CheckGPUErrors("Error using lines shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, LinesBuffer);
+            GL.Clear(ClearBufferMask.ColorBufferBit);
             CheckGPUErrors("Error binding to lines fbo:");
-            GL.DrawElements(BeginMode.Lines, ManipulatedLines.lines.Length, DrawElementsType.UnsignedInt, 0);
+            GL.DrawElements(BeginMode.Lines, ManipulatedLines.LineCount * 2, DrawElementsType.UnsignedInt, 0);
             CheckGPUErrors("Error rendering to line buffer:");
         }
 

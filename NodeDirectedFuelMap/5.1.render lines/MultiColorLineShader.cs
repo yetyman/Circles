@@ -96,8 +96,8 @@ namespace NodeDirectedFuelMap
         public void Use()
         {
             GL.UseProgram(Handle);
-            //GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);//sooo much prettier
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            GL.BlendFunc(BlendingFactor.One, BlendingFactor.Zero);
+            //GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);

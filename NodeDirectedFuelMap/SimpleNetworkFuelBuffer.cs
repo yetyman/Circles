@@ -72,8 +72,8 @@ namespace NodeDirectedFuelMap
             for (int i = 0; i < count; i++)
             {
                 points.AddPoint(
-                    (float)rand.NextDouble() * 2 - .5f,
-                    (float)rand.NextDouble() * 2 - .5f,
+                    (float)rand.NextDouble() * 3 - 1.5f,
+                    (float)rand.NextDouble() * 3 - 1.5f,
                     (float)rand.NextDouble(),
                     (float)rand.NextDouble(),
                     (float)rand.NextDouble(),
@@ -210,8 +210,8 @@ namespace NodeDirectedFuelMap
                     points.DeactivatePoint(randomInts[iIndex++]);
 
                     points.AddPoint(
-                        randomValues[x++] * 2 - .5f,//positionX
-                        randomValues[x++] * 2 - .5f,//positionY
+                        randomValues[x++] * 3 - 1.5f,//positionX
+                        randomValues[x++] * 3 - 1.5f,//positionY
                         randomValues[x++],//size1
                         randomValues[x++],//size2
                         randomValues[x++],//size3
@@ -248,8 +248,8 @@ namespace NodeDirectedFuelMap
                     );
 
                     points.MovePoint(randomInts[iIndex++],
-                        randomValues[x++] * 2 - .5f,//position1
-                        randomValues[x++] * 2 - .5f//position2
+                        randomValues[x++] * 3 - 1.5f,//position1
+                        randomValues[x++] * 3 - 1.5f//position2
                     );
 
 
@@ -296,9 +296,9 @@ namespace NodeDirectedFuelMap
                         else plus = 0;
 
                         if (j < g)
-                            ManipulatedLines.UpdateLine(j, points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex+plus);//oops what if the point it points to isnt active, that wont make much sense. i think i need to cache ALL the point's locations, active or not on the gfx card, then just update the active list with its extra data often. or could all the points go on the gfx card? if 1 million of them would fit on it no problem in a single managable array then i'm game
+                            ManipulatedLines.UpdateLine(j, (points.ActiveNeurons[i].pointIndex)/8, (points.ActiveNeurons[i].To[h].pointIndex+plus)/8);//oops what if the point it points to isnt active, that wont make much sense. i think i need to cache ALL the point's locations, active or not on the gfx card, then just update the active list with its extra data often. or could all the points go on the gfx card? if 1 million of them would fit on it no problem in a single managable array then i'm game
                         else
-                            ManipulatedLines.AddLine(points.ActiveNeurons[i].pointIndex, points.ActiveNeurons[i].To[h].pointIndex+plus);
+                            ManipulatedLines.AddLine((points.ActiveNeurons[i].pointIndex)/8, (points.ActiveNeurons[i].To[h].pointIndex+plus)/8);
                         j++;
                     }
                 }
@@ -509,7 +509,7 @@ namespace NodeDirectedFuelMap
             RenderLinesShader.Use();
             CheckGPUErrors("Error using lines shader:");
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, LinesBuffer);
-            GL.Clear(ClearBufferMask.ColorBufferBit);
+            //GL.Clear(ClearBufferMask.ColorBufferBit);
             CheckGPUErrors("Error binding to lines fbo:");
             GL.DrawElements(BeginMode.Lines, ManipulatedLines.LineCount * 2, DrawElementsType.UnsignedInt, 0);
             CheckGPUErrors("Error rendering to line buffer:");

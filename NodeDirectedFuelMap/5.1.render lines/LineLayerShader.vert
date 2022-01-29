@@ -10,7 +10,7 @@ float rand(vec2 co){
 }
 void main()
 {
-    gl_Position = vec4(aPosition*2-1,0,1);
-    color = vec4(rand(aPosition),rand(aPosition)+.1,rand(aPosition)+.2,.8);
+    gl_Position = vec4(aPosition,0,1);
+    color = vec4(rand(aPosition+.2), rand(aPosition+.1), rand(aPosition), 1);
     //gl_PointSize = (pointSizeMax-pointSizeMin)*aSize[layer]+pointSizeMin;
 }

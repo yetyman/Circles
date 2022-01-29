@@ -218,6 +218,7 @@ namespace NodeDirectedFuelMap
             int lp = firstOpenSpace;
             firstOpenSpace += PointSize;
 
+
             var n = CreateNeuron(x, y, r1, r2, r3, o1, o2, o3);
             MoveNewNeuronToActive(n, lp);
 
@@ -335,6 +336,7 @@ namespace NodeDirectedFuelMap
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MovePoint(int index, float x, float y)
         {
+
             Points[index + 0] = x;
             Points[index + 1] = y;
         }

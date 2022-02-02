@@ -460,7 +460,8 @@ namespace NodeDirectedFuelMap
             //we'll multiply the FuelPoolBuffer(an indicator for whether there is enough fuel available in a given area for activation to occur) with the fuel request buffer. 
             //Then we'll find the maximum areas for where a new neuron might be created. 
             //FUTURE: in the future this may separate so that new neuron creation is based on a different set of radiation values than neuron activation and at that point, the new neuron creation probability map would simply be the fuel available buffer multiplied by that radiation buffer
-            var maximumValues = Step5CalculateActivationsShader.Use();//later this will be used for new neuron creation
+            Step5CalculateActivationsShader.Use();//later this will be used for new neuron creation
+            var maximumValues = Step5CalculateActivationsShader.ReadMaximum();//later this will be used for new neuron creation
             CheckGPUErrors("Error rendering to activation buffer:");
 
             ////get the highest points in the activation pool. should it be the highest or random high ones? i prefer less random, so lets go highest and see if it doesn't backfire completely

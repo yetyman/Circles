@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace NodeDirectedFuelMap
@@ -25,6 +26,10 @@ namespace NodeDirectedFuelMap
         public float MipScale { get; set; }
         private int InputImageWidth = 0;
         private int InputImageHeight = 0;
+        public int[] pbo = new int[2];
+        public int pboIndex = 0;
+        public int DrawCalls = 0;
+        public int FrameReadLag = 1;
         public MaxMipMapShader(string computePath, int inputImageHandle, int inputImageHandle2)
         {
             _timer = new Stopwatch();
@@ -73,6 +78,16 @@ namespace NodeDirectedFuelMap
             MipMapImageHandle = InitializeRGBATexture(InputImageWidth / 2, InputImageHeight);//instantiate this here, should match the format in the shader and be half the width of inputImageHandle
             CheckGPUErrors("Error initializing compute shader3");//just in case
 
+
+            pbo[0] = GL.GenBuffer();
+            pbo[1] = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.PixelPackBuffer, pbo[0]);
+            GL.BufferData(BufferTarget.PixelPackBuffer, 3 * 4 * sizeof(float), (IntPtr)0, BufferUsageHint.StreamRead);
+            GL.BindBuffer(BufferTarget.PixelPackBuffer, pbo[1]);
+            GL.BufferData(BufferTarget.PixelPackBuffer, 3 * 4 * sizeof(float), (IntPtr)0, BufferUsageHint.StreamRead);
+            GL.BindBuffer(BufferTarget.PixelPackBuffer, 0);
+            CheckGPUErrors("Error creating pixel pack buffers:");
+
             _timer.Start();
 
         }
@@ -80,7 +95,7 @@ namespace NodeDirectedFuelMap
         {
             return GL.GetAttribLocation(Handle, attribName);
         }
-        public float[] Use()
+        public void Use()
         {
             GL.UseProgram(Handle);
 
@@ -109,15 +124,49 @@ namespace NodeDirectedFuelMap
             MipLevel--;
 
             CheckGPUErrors("Error executing compute shader:");
-
-            //get the values at (0,1) from the mipmap image, should be the final 1x1 mipmap
-            var output = new float[4];
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, MipMapFrameBufferHandle);
-            GL.ReadPixels(0,1,1,1,PixelFormat.Rgba,PixelType.Float, output);// x=original_X, y=original_Y, z=original_value
-
-            return output[0..2];
+            if(DrawCalls < pbo.Length)
+                DrawCalls++;
         }
 
+
+        float[] ret = new float[3];
+        internal float[] ReadMaximum()
+        {
+            //set the pixelpackbuffer to last unread pbo
+            GL.BindBuffer(BufferTarget.PixelPackBuffer, pbo[pboIndex]);
+            pboIndex = ++pboIndex % pbo.Length;
+            
+            //read the pbo since its been read to before
+            if (DrawCalls > FrameReadLag)
+            {
+                var memloc = GL.MapBuffer(BufferTarget.PixelPackBuffer, BufferAccess.ReadOnly);
+
+                unsafe
+                {
+                    if (IntPtr.Zero != memloc)
+                    {
+                        Marshal.Copy(memloc, ret, 0, 3);
+                    }
+                    else
+                    {
+                        Console.WriteLine("ERROR-reading pixels failed");
+                    }
+                }
+
+                GL.UnmapBuffer(BufferTarget.PixelPackBuffer);
+            }
+            else
+                ret[0] = ret[1] = ret[2] = 0;
+
+            //queue up a read on the current pbo
+            GL.ReadPixels(0, 1, 1, 1, PixelFormat.Rgba, PixelType.Float, (IntPtr)0);// x=original_X, y=original_Y, z=original_value
+            CheckGPUErrors("Error queueing pixel read to pbo:");
+
+            GL.BindBuffer(BufferTarget.PixelPackBuffer, 0);
+            CheckGPUErrors("Error resetting pixelPackBuffer:");
+
+            return ret;
+        }
         private int InitializeRGBATexture(int width, int height)
         {
 

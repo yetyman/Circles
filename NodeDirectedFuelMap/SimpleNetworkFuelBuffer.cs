@@ -420,7 +420,7 @@ namespace NodeDirectedFuelMap
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FuelRequestBuffer);
             GL.Clear(ClearBufferMask.ColorBufferBit);
             CheckGPUErrors("Error binding to opacity fbo:");
-            GL.DrawElementsInstanced(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt ,(IntPtr)0,points.PointCount);
+            GL.DrawElementsInstanced(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt, (IntPtr)0, points.PointCount);
             //hi me. pull up renderdoc and diagnose this stupid outofmemory exception!
             CheckGPUErrors("Error rendering to activation request float buffer:");
 
@@ -461,10 +461,43 @@ namespace NodeDirectedFuelMap
             //Then we'll find the maximum areas for where a new neuron might be created. 
             //FUTURE: in the future this may separate so that new neuron creation is based on a different set of radiation values than neuron activation and at that point, the new neuron creation probability map would simply be the fuel available buffer multiplied by that radiation buffer
             Step5CalculateActivationsShader.Use();//later this will be used for new neuron creation
-            var maximumValues = Step5CalculateActivationsShader.ReadMaximum();//later this will be used for new neuron creation
+
+
+
+            Add4thValueToMaximumsReadShader.Use(range);//this will use the same buffer as step5 and the float array of points. doing it here in a compute shader will keep it in frame. this will make the 4th value of the maximums read be the uniqueid of the neuron closest to this point. 0 if no neuron was within range!
+                                                       //range is based on the density of the graph
+
+
+            //so awesome thought. we can totally make a list from a computer shader... every item in a small buffer is placed according to an index that is incremented by each shader in the tightest way possible if it passes the predicate then they each stick their result in there
+            fuckyeahComputeAllRelatedActivePoints.Use();//everything that was affecting that spot. include how much it affected that spot! copy the distance intensity formula.  [UniqueId, strength, uniqueId, strength, ...]
+
+
+            //read maximums will end up reading a lot more than one pixel...
+
+            var maximumValues = Step5CalculateActivationsShader.ReadMaximum();//later this will be used for new neuron creation //this is always one frame behind.
             CheckGPUErrors("Error rendering to activation buffer:");
 
             ////get the highest points in the activation pool. should it be the highest or random high ones? i prefer less random, so lets go highest and see if it doesn't backfire completely
+            //find max point or create a new point. when do we create a new point? when do we connect new things to an existing point?
+
+            //this is last frame's most activated neuron
+            Neuron mostActivated = points.GetNeuron(points.poin[(int)maximumValues[4]];//how do i resolve this a frame late? i feel the only way is to add the neuron's unique id to the float array and carry it all the way through to be the 4th entry in the pixel read
+            if (mostActivated == null)
+                MakeNewNeuron(fuckyeahComputeAllRelatedActivePoints.useLastFramesAffectingHere, fuckyeahComputeAllRelatedActivePoints.useThisFramesAffectingHere);
+
+            CalculateAllTheNextFramesActivation()//for now just add to all children as needed. one pass, no second. all extra unactivated can just go back into the fuel grid with a radiation of the same equation as subtracted to feed the neuron's activation
+
+            FindActivatedExternalNodes.Use();
+            ProcessActions(FindActivatedExternalNodes.nodes);//this may be a copy buffer + asynchronous execution. who knows
+
+
+            //when the highest activation point is within a given distance(variable, smaller as the grid becomes denser) then that point is the point that will be affected
+            // -then reinforce existing lines and add week new ones to whatever's nearby and active... or no.. new lines should be forward only i think. no. it can't be. if it was, then what would the new point even connect to to activate anything. we start with a line, then we make it more advanced.
+            // -new lines from anything involved at this location atm. we may add a um.. frequency variable later to determine how much overlap occurs with neuron creation and activation level etc. hm. we could end up with a rainbow radiation graph. nice thought for another time
+            //if not, the highest activation point gains a new neuron
+            // -i imagine we can just set this new point to have added itself as the recipient of every previous frame neuron on this spot and a sender to every neuron that was about to be activated? sounds good to me.
+
+
             //Step6FindMaximumsShader.Use();
             //CheckGPUErrors("Error using maximums compute shader:");
             //GL.BindFramebuffer(FramebufferTarget.Framebuffer, ActivationBuffer);//finding maximums of this, the activation buffer... fuel used isnt activation... its fuel used. activation is another blurry circle buffer i haven't made yet...
@@ -472,7 +505,7 @@ namespace NodeDirectedFuelMap
             //CheckGPUErrors("Error binding to opacity fbo:");
             //GL.DrawArrays(PrimitiveType.Triangles, 0, 3);//should iterate every frag/pixel
             //CheckGPUErrors("Error finding maximums:");
-            
+
             //Step7FindMaximumSourcesShader.Use();
             //CheckGPUErrors("Error using maximums compute shader:");
             //GL.BindFramebuffer(FramebufferTarget.Framebuffer, ActivationBuffer);
